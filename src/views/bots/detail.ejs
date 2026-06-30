@@ -101,10 +101,33 @@
     <p class="muted">Gửi thử một tin nhắn tới một Chat ID (user hoặc nhóm).</p>
     <label>Chat ID</label>
     <input id="test-chat" class="mono" placeholder="VD: 1234567890 (dùng /id để lấy)" />
-    <label>Nội dung</label>
+    <label>Nội dung (text)</label>
     <textarea id="test-text" placeholder="Xin chào từ bot!"></textarea>
+    <label>Ảnh — URL ảnh công khai (tuỳ chọn)</label>
+    <input id="test-photo" class="mono" placeholder="https://.../image.jpg" />
+    <label>Chú thích ảnh (caption, tuỳ chọn)</label>
+    <input id="test-caption" placeholder="Mô tả ảnh" />
     <div style="margin-top:14px"><button class="btn primary" onclick="testSend(<%= bot.id %>)">Gửi thử</button></div>
     <pre id="test-result" class="logbox" style="display:none;margin-top:12px"></pre>
+    <p class="hint">Có thể gửi text, ảnh, hoặc cả hai. Ảnh phải là URL công khai (http/https).</p>
+  </div>
+
+  <div class="card">
+    <h3>🔌 API gửi tin cho hệ thống ngoài</h3>
+    <p class="muted">Hệ thống khác (n8n, app của bạn, cảnh báo...) gọi endpoint này để bot gửi tin. Xác thực bằng <strong>secret token</strong> của bot (ở tab Webhook).</p>
+    <label>Endpoint</label>
+    <input readonly class="mono copy" value="POST <%= webhookUrl.replace('/webhook/', '/api/bots/') %>/send" />
+    <label>Ví dụ gửi text (curl)</label>
+    <textarea class="code" readonly rows="6">curl -X POST <%= webhookUrl.replace('/webhook/', '/api/bots/') %>/send \
+  -H "Content-Type: application/json" \
+  -H "X-Bot-Api-Secret-Token: <%= bot.webhook_secret %>" \
+  -d '{"chat_id":"CHAT_ID","text":"Xin chào!"}'</textarea>
+    <label>Ví dụ gửi kèm ảnh</label>
+    <textarea class="code" readonly rows="6">curl -X POST <%= webhookUrl.replace('/webhook/', '/api/bots/') %>/send \
+  -H "Content-Type: application/json" \
+  -H "X-Bot-Api-Secret-Token: <%= bot.webhook_secret %>" \
+  -d '{"chat_id":"CHAT_ID","text":"Có ảnh nè","photo":"https://.../image.jpg","caption":"Chú thích"}'</textarea>
+    <p class="hint">Tham số: <span class="kbd">chat_id</span> (bắt buộc), <span class="kbd">text</span>, <span class="kbd">photo</span> (URL), <span class="kbd">caption</span>. Có ít nhất text hoặc photo.</p>
   </div>
 </div>
 

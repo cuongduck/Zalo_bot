@@ -38,9 +38,11 @@ app.use(
   })
 );
 
-// Inbound webhook route is mounted BEFORE body parsers/session so it can
-// use its own JSON parser and skip auth/csrf overhead.
+// Inbound webhook + public send API are mounted BEFORE body parsers/session so
+// they use their own JSON parser and skip auth/session overhead. They are
+// protected by the bot's secret token instead.
 app.use('/', require('./routes/inbound'));
+app.use('/', require('./routes/api'));
 
 // Body parsers for the web app.
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));

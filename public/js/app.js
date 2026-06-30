@@ -44,9 +44,11 @@ async function postJSON(url, body) {
 async function testSend(botId) {
   const chat_id = document.getElementById('test-chat').value.trim();
   const text = document.getElementById('test-text').value;
+  const photo = (document.getElementById('test-photo') || {}).value || '';
+  const caption = (document.getElementById('test-caption') || {}).value || '';
   show('test-result', 'Đang gửi...');
   try {
-    const r = await postJSON('/bots/' + botId + '/test-send', { chat_id, text });
+    const r = await postJSON('/bots/' + botId + '/test-send', { chat_id, text, photo, caption });
     show('test-result', r.ok ? '✅ Đã gửi!\n' + JSON.stringify(r.result, null, 2) : '❌ ' + r.message);
   } catch (e) {
     show('test-result', '❌ ' + e.message);

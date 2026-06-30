@@ -206,12 +206,20 @@ router.post('/bots/:id/rotate-secret', loadBot, async (req, res) => {
   res.redirect('/bots/' + req.bot.id);
 });
 
-// --- Test send message ---
+// --- Test send message (text and/or photo) ---
 router.post('/bots/:id/test-send', loadBot, async (req, res) => {
-  const { chat_id, text } = req.body;
-  if (!chat_id || !text) return res.json({ ok: false, message: 'Cần chat_id và nội dung.' });
+  const { chat_id, text, photo, caption } = req.body;
+  if (!chat_id || (!text && !photo)) {
+    return res.json({ ok: false, message: 'Cần chat_id và nội dung (text hoặc ảnh).' });
+  }
+  const api = apiFor(req.bot);
+  const result = {};
   try {
-    const result = await sendAndLog(req.bot, apiFor(req.bot), chat_id.trim(), text, 'test');
+    if (text) result.message = await sendAndLog(req.bot, api, chat_id.trim(), text, 'test');
+    if (photo) {
+      result.photo = await api.sendPhoto(chat_id.trim(), photo.trim(), { caption });
+      await Log.add(req.bot.id, { direction: 'out', event_type: 'test:photo', chat_id: chat_id.trim(), content: photo });
+    }
     res.json({ ok: true, result });
   } catch (err) {
     res.json({ ok: false, message: err.message });
