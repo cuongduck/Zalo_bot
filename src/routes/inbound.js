@@ -2,6 +2,7 @@
 
 const express = require('express');
 const Bot = require('../models/bot');
+const Log = require('../models/log');
 const { handleUpdate } = require('../services/botManager');
 
 const router = express.Router();
@@ -37,9 +38,29 @@ router.post('/webhook/:botId', express.json({ limit: '2mb' }), async (req, res) 
   }
   if (!bot) return res.status(404).json({ ok: false });
 
-  // Verify secret token (header or query param fallback).
-  const provided = req.get('X-Bot-Api-Secret-Token') || req.query.secret;
+  // Verify secret token. Accept any of the header names Zalo / clients may use,
+  // plus a ?secret= query fallback.
+  const provided =
+    req.get('X-Bot-Api-Secret-Token') ||
+    req.get('X-Zalo-Bot-Api-Secret-Token') ||
+    req.get('X-Secret-Token') ||
+    req.get('X-Webhook-Secret') ||
+    req.query.secret;
+
   if (!provided || provided !== bot.webhook_secret) {
+    // Log rejected attempts so they are visible in the Logs tab. This is the
+    // key diagnostic: if you see these, Zalo IS reaching the app but the secret
+    // header name/value differs from what we expect. The header list tells us
+    // exactly which header Zalo used so the check can be adjusted.
+    Log.add(botId, {
+      direction: 'error',
+      event_type: 'webhook_rejected',
+      content:
+        `POST nhận được nhưng secret không khớp/thiếu. ` +
+        `secret_received=${provided ? 'có' : 'không'}. ` +
+        `Headers gửi tới: ${Object.keys(req.headers).join(', ')}`,
+      raw: req.headers,
+    }).catch(() => {});
     return res.status(401).json({ ok: false, error: 'invalid secret token' });
   }
 
