@@ -1,0 +1,47 @@
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
+      MARIADB_DATABASE: ${DB_NAME:-zalobot}
+      MARIADB_USER: ${DB_USER:-zalobot}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-zalobot_password}
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      SESSION_SECRET: ${SESSION_SECRET:-change-this-secret}
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-zalobot}
+      DB_PASSWORD: ${DB_PASSWORD:-zalobot_password}
+      DB_NAME: ${DB_NAME:-zalobot}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-ChangeMe123!}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrator}
+      ZALO_API_BASE: ${ZALO_API_BASE:-https://bot-api.zapps.me/bot}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-1.5-flash}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+    ports:
+      - "${PORT:-3000}:3000"
+
+volumes:
+  db_data:

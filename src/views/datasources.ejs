@@ -1,0 +1,58 @@
+<%- include('partials/head') %>
+<div class="page-head"><h1>Kết nối dữ liệu</h1></div>
+<p class="muted">Kết nối tới MariaDB / MySQL / SQL Server để truy vấn dữ liệu từ trong code xử lý của bot (<span class="kbd">ctx.db('tên', sql, params)</span>).</p>
+
+<div class="card">
+  <h3>➕ Thêm kết nối</h3>
+  <form action="/datasources" method="post">
+    <div class="row">
+      <div><label>Tên kết nối <span class="hint">dùng trong code</span></label><input name="name" required placeholder="main" /></div>
+      <div>
+        <label>Loại</label>
+        <select name="type" onchange="dsPort(this)">
+          <option value="mysql">MySQL</option>
+          <option value="mariadb">MariaDB</option>
+          <option value="mssql">SQL Server</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div><label>Host</label><input name="host" required placeholder="127.0.0.1" /></div>
+      <div><label>Port</label><input name="port" id="ds-port" placeholder="3306" /></div>
+    </div>
+    <div class="row">
+      <div><label>Username</label><input name="username" placeholder="root" /></div>
+      <div><label>Password</label><input name="password" type="password" /></div>
+    </div>
+    <label>Database</label>
+    <input name="db_name" required placeholder="ten_database" />
+    <label>Tuỳ chọn nâng cao (JSON, không bắt buộc)</label>
+    <input name="options_json" class="mono" placeholder='{"ssl":false}' />
+    <div style="margin-top:14px"><button class="btn primary">Lưu kết nối</button></div>
+  </form>
+</div>
+
+<% if (datasources.length) { %>
+<div class="card">
+  <h3>Danh sách kết nối</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Tên</th><th>Loại</th><th>Host</th><th>Database</th><th></th></tr></thead>
+    <tbody>
+    <% datasources.forEach(function(d){ %>
+      <tr>
+        <td><strong><%= d.name %></strong></td>
+        <td><span class="tag blue"><%= d.type %></span></td>
+        <td class="mono"><%= d.host %>:<%= d.port %></td>
+        <td class="mono"><%= d.db_name %></td>
+        <td class="btn-group">
+          <button class="btn sm" onclick="dsTest(<%= d.id %>)">Test</button>
+          <form action="/datasources/<%= d.id %>/delete" method="post" onsubmit="return confirm('Xoá kết nối này?')"><button class="btn sm danger">Xoá</button></form>
+        </td>
+      </tr>
+    <% }); %>
+    </tbody>
+  </table></div>
+  <pre id="ds-result" class="logbox" style="display:none;margin-top:12px"></pre>
+</div>
+<% } %>
+<%- include('partials/foot') %>

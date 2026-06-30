@@ -1,0 +1,18 @@
+<% var narrow = true; %>
+<%- include('partials/head') %>
+<div class="center" style="margin: 30px 0 10px">
+  <div class="logo-big">🤖</div>
+  <h1>Zalo Bot Platform</h1>
+  <p class="muted">Đăng nhập để quản lý bot của bạn</p>
+</div>
+<div class="card">
+  <form action="/login" method="post">
+    <label>Email</label>
+    <input type="email" name="email" required autofocus placeholder="you@example.com" />
+    <label>Mật khẩu</label>
+    <input type="password" name="password" required placeholder="••••••••" />
+    <div style="margin-top:18px"><button class="btn primary" style="width:100%">Đăng nhập</button></div>
+  </form>
+</div>
+<p class="center muted">Chưa có tài khoản? <a href="/register">Đăng ký ngay</a></p>
+<%- include('partials/foot') %>

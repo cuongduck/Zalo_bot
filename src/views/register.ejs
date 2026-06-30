@@ -1,0 +1,28 @@
+<% var narrow = true; %>
+<%- include('partials/head') %>
+<div class="center" style="margin: 30px 0 10px">
+  <div class="logo-big">📝</div>
+  <h1>Đăng ký thành viên</h1>
+  <p class="muted">Tài khoản cần được admin phê duyệt trước khi sử dụng</p>
+</div>
+<div class="card">
+  <form action="/register" method="post">
+    <label>Họ tên</label>
+    <input type="text" name="name" required placeholder="Nguyễn Văn A" />
+    <label>Email</label>
+    <input type="email" name="email" required placeholder="you@example.com" />
+    <div class="row">
+      <div>
+        <label>Mật khẩu</label>
+        <input type="password" name="password" required minlength="6" placeholder="Tối thiểu 6 ký tự" />
+      </div>
+      <div>
+        <label>Xác nhận mật khẩu</label>
+        <input type="password" name="confirm" required minlength="6" />
+      </div>
+    </div>
+    <div style="margin-top:18px"><button class="btn primary" style="width:100%">Đăng ký</button></div>
+  </form>
+</div>
+<p class="center muted">Đã có tài khoản? <a href="/login">Đăng nhập</a></p>
+<%- include('partials/foot') %>

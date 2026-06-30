@@ -1,0 +1,19 @@
+<%- include('../partials/head') %>
+<div class="page-head"><h1>Tất cả bot (admin)</h1></div>
+<div class="card">
+  <div class="table-wrap"><table>
+    <thead><tr><th>Bot</th><th>Chủ sở hữu</th><th>Chế độ</th><th>Trạng thái</th><th></th></tr></thead>
+    <tbody>
+    <% bots.forEach(function(b){ %>
+      <tr>
+        <td><strong><%= b.name %></strong><br><span class="muted"><%= b.zalo_bot_name||'—' %></span></td>
+        <td class="muted">#<%= b.user_id %></td>
+        <td><span class="tag grey"><%= b.mode %></span></td>
+        <td><span class="tag <%= b.status==='active'?'green':'red' %>"><%= b.status %></span></td>
+        <td><a class="btn sm" href="/bots/<%= b.id %>">Mở</a></td>
+      </tr>
+    <% }); %>
+    </tbody>
+  </table></div>
+</div>
+<%- include('../partials/foot') %>

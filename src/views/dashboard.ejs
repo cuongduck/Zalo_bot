@@ -1,0 +1,52 @@
+<%- include('partials/head') %>
+<div class="page-head">
+  <h1>Xin chào, <%= currentUser.name %> 👋</h1>
+  <a class="btn primary" href="/bots">+ Quản lý bot</a>
+</div>
+
+<% if (currentUser.role === 'admin' && pendingCount > 0) { %>
+<div class="flash error">
+  Có <strong><%= pendingCount %></strong> thành viên đang chờ phê duyệt.
+  <a href="/admin/users">Xem ngay →</a>
+</div>
+<% } %>
+
+<div class="grid cols-3" style="margin-bottom:18px">
+  <div class="stat"><div class="num"><%= bots.length %></div><div class="lbl">Bot</div></div>
+  <div class="stat"><div class="num"><%= bots.filter(b=>b.status==='active').length %></div><div class="lbl">Đang hoạt động</div></div>
+  <div class="stat"><div class="num"><%= datasources.length %></div><div class="lbl">Kết nối dữ liệu</div></div>
+</div>
+
+<div class="card">
+  <div class="page-head"><h3>Bot gần đây</h3><a class="btn sm" href="/bots">Xem tất cả</a></div>
+  <% if (!bots.length) { %>
+    <p class="muted">Bạn chưa có bot nào. <a href="/bots">Thêm bot đầu tiên →</a></p>
+  <% } else { %>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Tên</th><th>Zalo Bot</th><th>Chế độ</th><th>Trạng thái</th><th></th></tr></thead>
+    <tbody>
+    <% bots.slice(0,6).forEach(function(b){ %>
+      <tr>
+        <td><strong><%= b.name %></strong></td>
+        <td class="muted"><%= b.zalo_bot_name || '—' %></td>
+        <td><span class="tag grey"><%= b.mode %></span></td>
+        <td><span class="tag <%= b.status==='active'?'green':'red' %>"><%= b.status %></span></td>
+        <td><a class="btn sm" href="/bots/<%= b.id %>">Mở</a></td>
+      </tr>
+    <% }); %>
+    </tbody>
+  </table></div>
+  <% } %>
+</div>
+
+<div class="card">
+  <h3>Hướng dẫn nhanh</h3>
+  <ol class="muted" style="line-height:1.9">
+    <li>Tạo bot trên <a href="https://bot.zapps.me" target="_blank">bot.zapps.me</a> và lấy <strong>Bot Token</strong>.</li>
+    <li>Vào mục <a href="/bots">Bot</a> → <em>Thêm bot</em> và dán token.</li>
+    <li>Mở bot → tab <em>Webhook</em> → nhấn <em>Đăng ký webhook</em> để nhận tin nhắn.</li>
+    <li>Bật <em>AI (Gemini)</em> hoặc viết <em>code xử lý tuỳ biến</em> để tự động trả lời.</li>
+    <li>Dùng lệnh <span class="kbd">/id</span> trong chat để lấy Chat ID & User ID.</li>
+  </ol>
+</div>
+<%- include('partials/foot') %>

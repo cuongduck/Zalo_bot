@@ -1,0 +1,48 @@
+<%- include('../partials/head') %>
+<div class="page-head"><h1>Quản lý thành viên</h1></div>
+<div class="grid cols-3" style="margin-bottom:18px">
+  <div class="stat"><div class="num"><%= counts.pending||0 %></div><div class="lbl">Chờ duyệt</div></div>
+  <div class="stat"><div class="num"><%= counts.approved||0 %></div><div class="lbl">Đã duyệt</div></div>
+  <div class="stat"><div class="num"><%= (counts.rejected||0)+(counts.suspended||0) %></div><div class="lbl">Từ chối / khoá</div></div>
+</div>
+
+<div class="card">
+  <div class="table-wrap"><table>
+    <thead><tr><th>Thành viên</th><th>Vai trò</th><th>Trạng thái</th><th>Ngày ĐK</th><th>Hành động</th></tr></thead>
+    <tbody>
+    <% users.forEach(function(u){ %>
+      <tr>
+        <td><strong><%= u.name %></strong><br><span class="muted mono"><%= u.email %></span></td>
+        <td>
+          <form action="/admin/users/<%= u.id %>/role" method="post" style="display:flex;gap:6px">
+            <select name="role" style="width:auto">
+              <option value="user" <%= u.role==='user'?'selected':'' %>>user</option>
+              <option value="admin" <%= u.role==='admin'?'selected':'' %>>admin</option>
+            </select>
+            <button class="btn sm">Lưu</button>
+          </form>
+        </td>
+        <td>
+          <span class="tag <%= u.status==='approved'?'green':(u.status==='pending'?'yellow':'red') %>"><%= u.status %></span>
+        </td>
+        <td class="muted"><%= new Date(u.created_at).toLocaleDateString('vi-VN') %></td>
+        <td class="btn-group">
+          <% if (u.status !== 'approved') { %>
+            <form action="/admin/users/<%= u.id %>/approve" method="post"><button class="btn sm success">Duyệt</button></form>
+          <% } %>
+          <% if (u.status === 'pending') { %>
+            <form action="/admin/users/<%= u.id %>/reject" method="post"><button class="btn sm danger">Từ chối</button></form>
+          <% } %>
+          <% if (u.status === 'approved' && u.id !== currentUser.id) { %>
+            <form action="/admin/users/<%= u.id %>/suspend" method="post"><button class="btn sm">Khoá</button></form>
+          <% } %>
+          <% if (u.id !== currentUser.id) { %>
+            <form action="/admin/users/<%= u.id %>/delete" method="post" onsubmit="return confirm('Xoá thành viên này?')"><button class="btn sm danger">Xoá</button></form>
+          <% } %>
+        </td>
+      </tr>
+    <% }); %>
+    </tbody>
+  </table></div>
+</div>
+<%- include('../partials/foot') %>

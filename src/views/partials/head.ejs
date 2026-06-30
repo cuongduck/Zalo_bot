@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= typeof title !== 'undefined' ? title + ' · ' : '' %>Zalo Bot Platform</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<% if (typeof currentUser !== 'undefined' && currentUser) { %>
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="/dashboard">🤖 Zalo<span>Bot</span></a>
+    <a class="navlink" href="/dashboard">Tổng quan</a>
+    <a class="navlink" href="/bots">Bot</a>
+    <a class="navlink" href="/datasources">Dữ liệu</a>
+    <% if (currentUser.role === 'admin') { %>
+      <a class="navlink" href="/admin/users">Thành viên<% if (typeof pendingCount !== 'undefined' && pendingCount > 0) { %><span class="badge-pill"><%= pendingCount %></span><% } %></a>
+    <% } %>
+    <span class="spacer"></span>
+    <span class="muted" style="font-size:13px"><%= currentUser.name %><% if (currentUser.role==='admin'){ %> · <span class="tag blue">admin</span><% } %></span>
+    <form action="/logout" method="post" style="margin:0"><button class="btn sm">Đăng xuất</button></form>
+  </div>
+</nav>
+<% } %>
+<div class="container <%= typeof narrow !== 'undefined' && narrow ? 'narrow' : '' %>">
+<% if (typeof flash !== 'undefined' && flash) { %>
+  <% (flash.success||[]).forEach(function(m){ %><div class="flash success"><%= m %></div><% }); %>
+  <% (flash.error||[]).forEach(function(m){ %><div class="flash error"><%= m %></div><% }); %>
+<% } %>

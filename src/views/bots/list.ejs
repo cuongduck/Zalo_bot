@@ -1,0 +1,48 @@
+<%- include('../partials/head') %>
+<div class="page-head"><h1>Bot của tôi</h1></div>
+
+<div class="card">
+  <h3>➕ Thêm bot mới</h3>
+  <form action="/bots" method="post">
+    <div class="row">
+      <div>
+        <label>Tên bot</label>
+        <input type="text" name="name" required placeholder="VD: Bot CSKH" />
+      </div>
+      <div>
+        <label>Chế độ nhận tin</label>
+        <select name="mode">
+          <option value="webhook">Webhook (khuyên dùng)</option>
+          <option value="polling">Long polling</option>
+          <option value="off">Tắt</option>
+        </select>
+      </div>
+    </div>
+    <label>Bot Token <span class="hint">Lấy từ bot.zapps.me</span></label>
+    <input type="text" name="token" required placeholder="123456:ABC-DEF..." class="mono" />
+    <div style="margin-top:16px"><button class="btn primary">Thêm bot</button></div>
+  </form>
+</div>
+
+<% if (!bots.length) { %>
+  <div class="card center muted">Chưa có bot nào.</div>
+<% } else { %>
+<div class="grid cols-2">
+  <% bots.forEach(function(b){ %>
+  <div class="card">
+    <div class="page-head" style="margin-bottom:8px">
+      <h3 style="margin:0"><%= b.name %></h3>
+      <span class="tag <%= b.status==='active'?'green':'red' %>"><%= b.status %></span>
+    </div>
+    <p class="muted" style="margin:4px 0">
+      <%= b.zalo_bot_name || 'Chưa xác thực' %>
+      <% if (b.ai_enabled) { %><span class="tag blue">AI</span><% } %>
+      <% if (b.custom_code_enabled) { %><span class="tag yellow">Code</span><% } %>
+      <span class="tag grey"><%= b.mode %></span>
+    </p>
+    <a class="btn primary sm" href="/bots/<%= b.id %>">Quản lý →</a>
+  </div>
+  <% }); %>
+</div>
+<% } %>
+<%- include('../partials/foot') %>
