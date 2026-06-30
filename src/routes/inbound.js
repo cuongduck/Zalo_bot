@@ -14,6 +14,17 @@ const router = express.Router();
  *
  * We respond 200 immediately and process asynchronously so Zalo does not retry.
  */
+// Health/diagnostic for opening the webhook URL in a browser (GET).
+// Useful to confirm the domain/reverse-proxy actually reaches this app.
+// It does NOT process anything and never reveals the secret.
+router.get('/webhook/:botId', (req, res) => {
+  res.json({
+    ok: true,
+    message: 'Zalo webhook endpoint is alive. This endpoint only accepts POST requests from Zalo.',
+    bot_id: parseInt(req.params.botId, 10) || null,
+  });
+});
+
 router.post('/webhook/:botId', express.json({ limit: '2mb' }), async (req, res) => {
   const botId = parseInt(req.params.botId, 10);
   if (!botId) return res.status(404).json({ ok: false });
