@@ -54,7 +54,8 @@
     <form action="/bots/<%= bot.id %>/ai" method="post">
       <div class="check"><input type="checkbox" id="ai_enabled" name="ai_enabled" <%= bot.ai_enabled ? 'checked':'' %> /><label for="ai_enabled" style="margin:0">Bật tự động trả lời bằng AI</label></div>
       <label>Model</label>
-      <input type="text" name="ai_model" value="<%= bot.ai_model || 'gemini-1.5-flash' %>" placeholder="gemini-1.5-flash" />
+      <input type="text" name="ai_model" value="<%= bot.ai_model || 'gemini-2.0-flash' %>" placeholder="gemini-2.0-flash" />
+      <p class="hint">Model đang dùng được, vd: <span class="kbd">gemini-2.0-flash</span>, <span class="kbd">gemini-2.5-flash</span>, <span class="kbd">gemini-flash-latest</span>. (Các model 1.5 đã bị Google gỡ.)</p>
       <label>Gemini API Key <span class="hint">để trống nếu dùng key chung của hệ thống</span></label>
       <input type="password" name="ai_api_key" placeholder="<%= bot.ai_api_key ? '•••••• (đã lưu, để trống nếu giữ nguyên)' : 'AIza...' %>" />
       <label>System prompt (định hướng trả lời)</label>
