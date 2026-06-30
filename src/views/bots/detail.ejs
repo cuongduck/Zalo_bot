@@ -161,7 +161,7 @@
         <div class="log-line log-<%= l.direction %>">
           <span class="muted"><%= new Date(l.created_at).toLocaleString('vi-VN') %></span>
           <span class="tag <%= l.direction==='in'?'blue':(l.direction==='out'?'green':(l.direction==='error'?'red':'grey')) %>"><%= l.direction %></span>
-          <span><%= l.event_type || '' %><% if (l.chat_id){ %> · chat:<%= l.chat_id %><% } %><% if (l.from_name){ %> · <%= l.from_name %><% } %></span>
+          <span><%= l.event_type || '' %><% if (l.chat_id){ %> · chat:<%= l.chat_id %><% } %><% if (l.from_id){ %> · user:<%= l.from_id %><% } %><% if (l.from_name){ %> · <%= l.from_name %><% } %></span>
           <span><%= l.content || '' %></span>
         </div>
       <% }); %>

@@ -84,7 +84,7 @@ async function loadLogs(botId) {
           '<div class="log-line log-' + l.direction + '">' +
           '<span class="muted">' + t + '</span>' +
           '<span class="tag ' + cls + '">' + l.direction + '</span>' +
-          '<span>' + esc(l.event_type || '') + (l.chat_id ? ' · chat:' + esc(l.chat_id) : '') + (l.from_name ? ' · ' + esc(l.from_name) : '') + '</span>' +
+          '<span>' + esc(l.event_type || '') + (l.chat_id ? ' · chat:' + esc(l.chat_id) : '') + (l.from_id ? ' · user:' + esc(l.from_id) : '') + (l.from_name ? ' · ' + esc(l.from_name) : '') + '</span>' +
           '<span>' + esc(l.content || '') + '</span>' +
           '</div>'
         );
