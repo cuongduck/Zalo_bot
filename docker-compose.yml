@@ -9,8 +9,12 @@ services:
       MARIADB_PASSWORD: ${DB_PASSWORD:-zalobot_password}
     volumes:
       - db_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
+    # The app talks to this DB over the internal Docker network (DB_HOST=db),
+    # so we do NOT publish 3306 to the host (avoids clashing with a MariaDB
+    # already running on the server). Uncomment & change the host port only if
+    # you need to reach this container's DB from outside Docker, e.g. "3307:3306".
+    # ports:
+    #   - "3307:3306"
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
