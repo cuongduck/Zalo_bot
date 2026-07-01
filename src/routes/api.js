@@ -97,12 +97,36 @@ router.post('/api/bots/:id/sendMessage', express.json({ limit: '2mb' }), handleS
 router.post('/api/bots/:id/trigger', express.json({ limit: '4mb' }), async (req, res) => {
   const bot = await authBot(req, res);
   if (!bot) return;
-  if (!bot.trigger_enabled || !bot.trigger_code || !bot.trigger_code.trim()) {
-    return res.status(400).json({ ok: false, error: 'Trigger code chưa được bật hoặc đang trống cho bot này.' });
+
+  // Always record the incoming webhook first, so it is visible in the Logs tab
+  // even if trigger handling is disabled or the code later errors.
+  let bodyStr;
+  try {
+    bodyStr = JSON.stringify(req.body);
+  } catch {
+    bodyStr = String(req.body);
   }
+  await Log.add(bot.id, {
+    direction: 'in',
+    event_type: 'trigger:received',
+    content: bodyStr ? bodyStr.slice(0, 3000) : '(empty body)',
+    raw: req.body,
+  });
+
+  if (!bot.trigger_enabled || !bot.trigger_code || !bot.trigger_code.trim()) {
+    await Log.add(bot.id, {
+      direction: 'system',
+      event_type: 'trigger',
+      content: 'Đã nhận webhook nhưng Trigger code chưa bật/đang trống — không xử lý.',
+    });
+    return res
+      .status(200)
+      .json({ ok: true, processed: false, message: 'Webhook nhận được nhưng trigger code chưa bật.' });
+  }
+
   try {
     const out = await runTrigger(bot, req.body);
-    res.json({ ok: true, logs: out.logs, result: out.returned ?? null });
+    res.json({ ok: true, processed: true, logs: out.logs, result: out.returned ?? null });
   } catch (err) {
     await Log.add(bot.id, { direction: 'error', event_type: 'trigger', chat_id: null, content: err.message });
     res.status(500).json({ ok: false, error: err.message });

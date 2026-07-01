@@ -198,12 +198,8 @@ function buildTriggerContext(bot, payload) {
  * Returns { returned, logs }. Throws on handler error (caller logs it).
  */
 async function runTrigger(bot, payload) {
-  await Log.add(bot.id, {
-    direction: 'in',
-    event_type: 'trigger',
-    content: (typeof payload === 'object' ? JSON.stringify(payload) : String(payload)).slice(0, 1000),
-    raw: payload,
-  });
+  // The inbound webhook itself is logged by the caller (routes/api.js) so it
+  // is recorded even when trigger handling is disabled; here we only run code.
   const ctx = buildTriggerContext(bot, payload);
   const { returned, logs } = await runHandler(bot.trigger_code, ctx, { timeoutMs: 12000 });
   if (logs.length) {
