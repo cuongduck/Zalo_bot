@@ -68,12 +68,82 @@
 </div>
 
 <!-- CODE -->
+<%
+  var matchLabels = { prefix:'Bắt đầu bằng', contains:'Chứa', equals:'Bằng đúng', regex:'Regex', any:'Mọi tin' };
+  var chatLabels = { any:'Mọi nơi', user:'Chat riêng', group:'Nhóm' };
+%>
 <div class="tab-pane" id="tab-code">
   <div class="card">
-    <h3>Code xử lý tin nhắn tuỳ biến</h3>
-    <p class="muted">JavaScript chạy mỗi khi có tin nhắn đến. Có sẵn đối tượng <span class="kbd">ctx</span>.</p>
+    <h3>⚡ Quy tắc xử lý tin nhắn (low-code)</h3>
+    <p class="muted">Tạo nhiều quy tắc: khi tin nhắn Zalo <strong>khớp điều kiện</strong>, code tương ứng chạy. Xét theo thứ tự (số nhỏ trước), <strong>quy tắc đầu tiên khớp sẽ xử lý</strong>. Không quy tắc nào khớp → dùng "Code catch-all" hoặc AI bên dưới.</p>
+    <form action="/bots/<%= bot.id %>/rules" method="post">
+      <div class="row">
+        <div><label>Tên quy tắc</label><input name="name" required placeholder="VD: Tra giá" /></div>
+        <div>
+          <label>Điều kiện</label>
+          <select name="match_type">
+            <% Object.keys(matchLabels).forEach(function(k){ %><option value="<%= k %>"><%= matchLabels[k] %></option><% }); %>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div><label>Giá trị khớp</label><input name="match_value" class="mono" placeholder="/gia (bỏ trống nếu chọn 'Mọi tin')" /></div>
+        <div>
+          <label>Áp dụng ở</label>
+          <select name="chat_filter">
+            <% Object.keys(chatLabels).forEach(function(k){ %><option value="<%= k %>"><%= chatLabels[k] %></option><% }); %>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:12px"><button class="btn primary">+ Thêm quy tắc</button></div>
+    </form>
+  </div>
+
+  <% if (!rules.length) { %>
+    <div class="card muted center">Chưa có quy tắc nào. Tin nhắn sẽ dùng "Code catch-all" / AI bên dưới.</div>
+  <% } %>
+
+  <% rules.forEach(function(rl){ %>
+  <div class="card">
+    <div class="page-head" style="margin-bottom:8px">
+      <h3 style="margin:0"><%= rl.name %>
+        <span class="tag blue"><%= matchLabels[rl.match_type] %><%= rl.match_value ? ': '+rl.match_value : '' %></span>
+        <span class="tag grey"><%= chatLabels[rl.chat_filter] %></span>
+        <span class="tag <%= rl.enabled?'green':'red' %>"><%= rl.enabled?'bật':'tắt' %></span>
+      </h3>
+      <form action="/bots/<%= bot.id %>/rules/<%= rl.id %>/delete" method="post" onsubmit="return confirm('Xoá quy tắc này?')"><button class="btn sm danger">Xoá</button></form>
+    </div>
+    <form action="/bots/<%= bot.id %>/rules/<%= rl.id %>/save" method="post">
+      <div class="row">
+        <div><label>Tên</label><input name="name" value="<%= rl.name %>" /></div>
+        <div><label>Điều kiện</label>
+          <select name="match_type">
+            <% Object.keys(matchLabels).forEach(function(k){ %><option value="<%= k %>" <%= rl.match_type===k?'selected':'' %>><%= matchLabels[k] %></option><% }); %>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div><label>Giá trị khớp</label><input name="match_value" class="mono" value="<%= rl.match_value || '' %>" /></div>
+        <div><label>Áp dụng ở</label>
+          <select name="chat_filter">
+            <% Object.keys(chatLabels).forEach(function(k){ %><option value="<%= k %>" <%= rl.chat_filter===k?'selected':'' %>><%= chatLabels[k] %></option><% }); %>
+          </select>
+        </div>
+        <div style="max-width:110px"><label>Thứ tự</label><input name="sort_order" type="number" value="<%= rl.sort_order %>" /></div>
+      </div>
+      <div class="check" style="margin-top:8px"><input type="checkbox" id="re_<%= rl.id %>" name="enabled" <%= rl.enabled?'checked':'' %> /><label for="re_<%= rl.id %>" style="margin:0">Bật quy tắc</label></div>
+      <label>Code xử lý</label>
+      <textarea name="code" class="code" spellcheck="false"><%= rl.code || '' %></textarea>
+      <div style="margin-top:12px"><button class="btn primary">Lưu quy tắc</button></div>
+    </form>
+  </div>
+  <% }); %>
+
+  <div class="card">
+    <h3>🧩 Code catch-all (khi không quy tắc nào khớp)</h3>
+    <p class="muted">Tuỳ chọn: một code chạy khi không quy tắc nào ở trên khớp. Có sẵn đối tượng <span class="kbd">ctx</span>.</p>
     <form action="/bots/<%= bot.id %>/code" method="post">
-      <div class="check"><input type="checkbox" id="cc_enabled" name="custom_code_enabled" <%= bot.custom_code_enabled ? 'checked':'' %> /><label for="cc_enabled" style="margin:0">Bật code xử lý tuỳ biến</label></div>
+      <div class="check"><input type="checkbox" id="cc_enabled" name="custom_code_enabled" <%= bot.custom_code_enabled ? 'checked':'' %> /><label for="cc_enabled" style="margin:0">Bật code catch-all</label></div>
       <label>Mã nguồn</label>
       <textarea name="custom_code" class="code" spellcheck="false"><%= bot.custom_code || defaultCode %></textarea>
       <div style="margin-top:14px"><button class="btn primary">Lưu code</button></div>

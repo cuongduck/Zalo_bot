@@ -9,6 +9,7 @@ const Bot = require('../models/bot');
 const Log = require('../models/log');
 const Webhook = require('../models/webhook');
 const Datasource = require('../models/datasource');
+const MessageRule = require('../models/messageRule');
 
 /**
  * Normalize a raw Zalo update into a flat message object.
@@ -75,29 +76,22 @@ async function handleUpdate(bot, update) {
     return;
   }
 
-  // 1) Custom code handler takes priority.
-  if (bot.custom_code_enabled && bot.custom_code && bot.custom_code.trim()) {
-    try {
-      const ctx = buildHandlerContext(bot, api, m);
-      const { returned, logs } = await runHandler(bot.custom_code, ctx, { timeoutMs: 8000 });
-      if (logs.length) {
-        await Log.add(bot.id, { direction: 'system', event_type: 'custom_code',
-          chat_id: m.chatId, content: logs.join('\n') });
-      }
-      if (typeof returned === 'string' && returned.trim()) {
-        await sendAndLog(bot, api, m.chatId, returned, 'custom_code');
-      } else if (returned && typeof returned === 'object' && returned.text) {
-        await sendAndLog(bot, api, returned.chat_id || m.chatId, returned.text, 'custom_code');
-      }
-      return; // custom handler is authoritative
-    } catch (err) {
-      await Log.add(bot.id, { direction: 'error', event_type: 'custom_code',
-        chat_id: m.chatId, content: err.message });
-      return;
+  // 1) Low-code message rules: first matching enabled rule wins.
+  const rules = await MessageRule.listEnabledForBot(bot.id);
+  for (const rule of rules) {
+    if (ruleMatches(rule, m)) {
+      await runMessageCode(bot, api, m, rule.code, 'rule:' + rule.name);
+      return; // matched rule is authoritative
     }
   }
 
-  // 2) AI auto-reply.
+  // 2) Catch-all custom code handler.
+  if (bot.custom_code_enabled && bot.custom_code && bot.custom_code.trim()) {
+    await runMessageCode(bot, api, m, bot.custom_code, 'custom_code');
+    return;
+  }
+
+  // 3) AI auto-reply.
   if (bot.ai_enabled && m.text && m.text.trim()) {
     try {
       await api.sendChatAction(m.chatId, 'typing').catch(() => {});
@@ -112,6 +106,54 @@ async function handleUpdate(bot, update) {
       await Log.add(bot.id, { direction: 'error', event_type: 'ai',
         chat_id: m.chatId, content: err.message });
     }
+  }
+}
+
+/** Does an incoming message match a low-code rule? */
+function ruleMatches(rule, m) {
+  const wantChat = rule.chat_filter || 'any';
+  if (wantChat !== 'any') {
+    const actual = m.chatType === 'group' ? 'group' : 'user';
+    if (wantChat !== actual) return false;
+  }
+  const text = (m.text || '').trim();
+  const val = rule.match_value || '';
+  switch (rule.match_type) {
+    case 'any':
+      return true;
+    case 'equals':
+      return text.toLowerCase() === val.toLowerCase();
+    case 'prefix':
+      return text.toLowerCase().startsWith(val.toLowerCase());
+    case 'contains':
+      return text.toLowerCase().includes(val.toLowerCase());
+    case 'regex':
+      try {
+        return new RegExp(val, 'i').test(text);
+      } catch {
+        return false;
+      }
+    default:
+      return false;
+  }
+}
+
+/** Run a message-handler code block (rule or catch-all) and send its reply. */
+async function runMessageCode(bot, api, m, code, label) {
+  if (!code || !code.trim()) return;
+  try {
+    const ctx = buildHandlerContext(bot, api, m);
+    const { returned, logs } = await runHandler(code, ctx, { timeoutMs: 8000 });
+    if (logs.length) {
+      await Log.add(bot.id, { direction: 'system', event_type: label, chat_id: m.chatId, content: logs.join('\n') });
+    }
+    if (typeof returned === 'string' && returned.trim()) {
+      await sendAndLog(bot, api, m.chatId, returned, label);
+    } else if (returned && typeof returned === 'object' && returned.text) {
+      await sendAndLog(bot, api, returned.chat_id || m.chatId, returned.text, label);
+    }
+  } catch (err) {
+    await Log.add(bot.id, { direction: 'error', event_type: label, chat_id: m.chatId, content: err.message });
   }
 }
 

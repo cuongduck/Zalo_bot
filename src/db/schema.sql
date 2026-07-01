@@ -93,6 +93,24 @@ CREATE TABLE IF NOT EXISTS triggers (
   CONSTRAINT fk_trigger_bot FOREIGN KEY (bot_id) REFERENCES bots (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Low-code message rules: match an incoming Zalo message by condition and run
+-- a dedicated handler. Rules are evaluated by sort_order; first match wins.
+CREATE TABLE IF NOT EXISTS message_rules (
+  id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  bot_id       INT UNSIGNED NOT NULL,
+  name         VARCHAR(120) NOT NULL,
+  match_type   ENUM('prefix','contains','equals','regex','any') NOT NULL DEFAULT 'prefix',
+  match_value  VARCHAR(255) NULL,
+  chat_filter  ENUM('any','user','group') NOT NULL DEFAULT 'any',
+  code         MEDIUMTEXT NULL,
+  sort_order   INT NOT NULL DEFAULT 0,
+  enabled      TINYINT(1) NOT NULL DEFAULT 1,
+  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_rule_bot (bot_id, sort_order),
+  CONSTRAINT fk_rule_bot FOREIGN KEY (bot_id) REFERENCES bots (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- External data sources the user can query from custom handlers (MariaDB/MySQL/SQL Server).
 CREATE TABLE IF NOT EXISTS datasources (
   id            INT UNSIGNED NOT NULL AUTO_INCREMENT,

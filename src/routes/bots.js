@@ -6,6 +6,7 @@ const Bot = require('../models/bot');
 const Log = require('../models/log');
 const Webhook = require('../models/webhook');
 const Trigger = require('../models/trigger');
+const MessageRule = require('../models/messageRule');
 const Datasource = require('../models/datasource');
 const ZaloBotApi = require('../services/zaloApi');
 const { apiFor, sendAndLog } = require('../services/botManager');
@@ -30,6 +31,10 @@ if (text.toLowerCase() === 'ping') {
 
 // Mặc định: nhờ AI Gemini trả lời
 return await ctx.ai(text);`;
+
+const DEFAULT_RULE_CODE = `// Quy tắc này khớp -> code chạy. ctx.message có { text, chatId, chatType, fromId, fromName }
+// Có thể dùng: ctx.reply, ctx.send, ctx.ai, ctx.db, ctx.sendPhoto, ctx.fetch, ctx.log
+return 'Bạn vừa gửi: ' + (ctx.message.text || '');`;
 
 const DEFAULT_TRIGGER_CODE = `// Nhận webhook ngoài -> xử lý -> gửi Zalo.
 // n8n thường gửi mảng, nên lấy phần tử đầu; dữ liệu thật nằm trong .body
@@ -105,6 +110,7 @@ router.get('/bots/:id', loadBot, async (req, res) => {
   const logs = await Log.listForBot(req.bot.id, { limit: 50 });
   const webhooks = await Webhook.listForBot(req.bot.id);
   const triggers = await Trigger.listForBot(req.bot.id);
+  const rules = await MessageRule.listForBot(req.bot.id);
   const stats = await Log.stats(req.bot.id);
   const datasources = await Datasource.listForUser(req.bot.user_id);
   const webhookUrl = `${config.appBaseUrl}/webhook/${req.bot.id}`;
@@ -114,6 +120,7 @@ router.get('/bots/:id', loadBot, async (req, res) => {
     logs,
     webhooks,
     triggers,
+    rules,
     stats,
     datasources,
     webhookUrl,
@@ -189,6 +196,50 @@ router.post('/bots/:id/trigger-code', loadBot, async (req, res) => {
     trigger_code: req.body.trigger_code || '',
   });
   req.flash('success', 'Đã lưu code xử lý webhook ngoài.');
+  res.redirect('/bots/' + req.bot.id);
+});
+
+// --- Low-code message rules ---
+router.post('/bots/:id/rules', loadBot, async (req, res) => {
+  const { name, match_type, match_value, chat_filter } = req.body;
+  try {
+    if (!name) throw new Error('Cần nhập tên quy tắc.');
+    await MessageRule.create({
+      bot_id: req.bot.id,
+      name: name.trim(),
+      match_type,
+      match_value: (match_value || '').trim(),
+      chat_filter,
+      code: DEFAULT_RULE_CODE,
+    });
+    req.flash('success', 'Đã tạo quy tắc.');
+  } catch (err) {
+    req.flash('error', 'Lỗi: ' + err.message);
+  }
+  res.redirect('/bots/' + req.bot.id);
+});
+
+router.post('/bots/:id/rules/:rid/save', loadBot, async (req, res) => {
+  const r = await MessageRule.findById(parseInt(req.params.rid, 10));
+  if (r && r.bot_id === req.bot.id) {
+    await MessageRule.update(r.id, {
+      name: (req.body.name || r.name).trim(),
+      match_type: req.body.match_type,
+      match_value: (req.body.match_value || '').trim() || null,
+      chat_filter: req.body.chat_filter,
+      sort_order: parseInt(req.body.sort_order, 10) || 0,
+      code: req.body.code || '',
+      enabled: req.body.enabled ? 1 : 0,
+    });
+    req.flash('success', `Đã lưu quy tắc "${r.name}".`);
+  }
+  res.redirect('/bots/' + req.bot.id);
+});
+
+router.post('/bots/:id/rules/:rid/delete', loadBot, async (req, res) => {
+  const r = await MessageRule.findById(parseInt(req.params.rid, 10));
+  if (r && r.bot_id === req.bot.id) await MessageRule.delete(r.id);
+  req.flash('success', 'Đã xoá quy tắc.');
   res.redirect('/bots/' + req.bot.id);
 });
 
