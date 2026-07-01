@@ -49,7 +49,8 @@ const MessageRule = {
   },
 
   async update(id, fields) {
-    const allowed = ['name', 'match_type', 'match_value', 'chat_filter', 'action_type', 'reply_text', 'code', 'sort_order', 'enabled'];
+    const allowed = ['name', 'match_type', 'match_value', 'chat_filter', 'action_type', 'reply_text',
+      'data_mode', 'data_datasource', 'data_query', 'data_sheet_url', 'code', 'sort_order', 'enabled'];
     const sets = [];
     const params = { id };
     for (const k of allowed) {

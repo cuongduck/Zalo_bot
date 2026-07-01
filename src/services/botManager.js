@@ -5,6 +5,7 @@ const ZaloBotApi = require('./zaloApi');
 const gemini = require('./gemini');
 const externalDb = require('./externalDb');
 const { runHandler } = require('./customHandler');
+const sheets = require('./sheets');
 const tpl = require('../utils/template');
 const Bot = require('../models/bot');
 const Log = require('../models/log');
@@ -154,9 +155,26 @@ async function executeRule(bot, api, m, rule) {
   try {
     if (rule.action_type === 'ai') {
       await api.sendChatAction(m.chatId, 'typing').catch(() => {});
-      const prompt = (rule.reply_text ? rule.reply_text.trim() + '\n\n' : '') + (m.text || '');
+      // Optional no-code data feed: database rows or a Google Sheet become
+      // reference context so the AI can answer from real data.
+      let dataContext = '';
+      if (rule.data_mode === 'db' && rule.data_datasource && rule.data_query) {
+        const ds = await Datasource.findByNameForUser(rule.data_datasource, bot.user_id);
+        if (!ds) throw new Error(`Không tìm thấy kết nối dữ liệu "${rule.data_datasource}"`);
+        // A single ? placeholder binds the user's message text (safe, parameterized).
+        const params = rule.data_query.includes('?') ? [m.text || ''] : [];
+        const rows = await externalDb.runQuery(ds, rule.data_query, params);
+        dataContext = JSON.stringify(Array.isArray(rows) ? rows.slice(0, 50) : rows).slice(0, 8000);
+      } else if (rule.data_mode === 'sheet' && rule.data_sheet_url) {
+        dataContext = await sheets.fetchCsv(rule.data_sheet_url, { maxChars: 12000 });
+      }
+      const guidance = rule.reply_text ? rule.reply_text.trim() + '\n\n' : '';
+      const dataBlock = dataContext
+        ? 'Dữ liệu tham khảo (trả lời dựa trên dữ liệu này):\n' + dataContext + '\n\n'
+        : '';
       const reply = await gemini.generateReply({
-        apiKey: bot.ai_api_key, model: bot.ai_model, systemPrompt: bot.ai_system_prompt, message: prompt,
+        apiKey: bot.ai_api_key, model: bot.ai_model, systemPrompt: bot.ai_system_prompt,
+        message: guidance + dataBlock + 'Câu hỏi của khách: ' + (m.text || ''),
       });
       await sendAndLog(bot, api, m.chatId, reply, label);
     } else if (rule.action_type === 'code') {
@@ -229,6 +247,9 @@ function buildHandlerContext(bot, api, m) {
       if (!ds) throw new Error(`Datasource "${datasourceName}" not found for this user`);
       return externalDb.runQuery(ds, sql, params);
     },
+    async sheet(url, opts) {
+      return sheets.fetchCsv(url, opts);
+    },
     fetch,
   };
 }
@@ -263,6 +284,9 @@ function buildTriggerContext(bot, payload) {
       const ds = await Datasource.findByNameForUser(datasourceName, bot.user_id);
       if (!ds) throw new Error(`Datasource "${datasourceName}" not found for this user`);
       return externalDb.runQuery(ds, sql, params);
+    },
+    async sheet(url, opts) {
+      return sheets.fetchCsv(url, opts);
     },
     fetch,
   };

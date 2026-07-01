@@ -108,6 +108,10 @@ CREATE TABLE IF NOT EXISTS message_rules (
   chat_filter  ENUM('any','user','group') NOT NULL DEFAULT 'any',
   action_type  ENUM('text','ai','code') NOT NULL DEFAULT 'text',
   reply_text   MEDIUMTEXT NULL,
+  data_mode    ENUM('none','db','sheet') NOT NULL DEFAULT 'none',  -- feed AI with data
+  data_datasource VARCHAR(120) NULL,   -- datasource name (data_mode=db)
+  data_query   TEXT NULL,              -- SQL, use ? for the user's message text
+  data_sheet_url VARCHAR(500) NULL,    -- Google Sheet link (data_mode=sheet)
   code         MEDIUMTEXT NULL,
   sort_order   INT NOT NULL DEFAULT 0,
   enabled      TINYINT(1) NOT NULL DEFAULT 1,

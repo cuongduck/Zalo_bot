@@ -19,8 +19,18 @@ function toggleAction(sel) {
   var isCode = sel.value === 'code';
   var t = form.querySelector('.field-text');
   var c = form.querySelector('.field-code');
+  var d = form.querySelector('.field-ai-data');
   if (t) t.style.display = isCode ? 'none' : 'block';
   if (c) c.style.display = isCode ? 'block' : 'none';
+  if (d) d.style.display = sel.value === 'ai' ? 'block' : 'none';
+}
+function toggleData(sel) {
+  var box = sel.closest('.field-ai-data');
+  if (!box) return;
+  var db = box.querySelector('.field-data-db');
+  var sh = box.querySelector('.field-data-sheet');
+  if (db) db.style.display = sel.value === 'db' ? 'block' : 'none';
+  if (sh) sh.style.display = sel.value === 'sheet' ? 'block' : 'none';
 }
 function toggleTrigger(sel) {
   var form = sel.closest('form');
@@ -33,6 +43,69 @@ function toggleTrigger(sel) {
 }
 document.querySelectorAll('.action-select').forEach(toggleAction);
 document.querySelectorAll('.mode-select').forEach(toggleTrigger);
+document.querySelectorAll('.data-select').forEach(toggleData);
+
+// --- No-code payload field picker for external webhooks ---
+function flattenPayload(obj, prefix, out) {
+  out = out || [];
+  if (Array.isArray(obj)) obj = obj[0]; // n8n wraps payloads in an array
+  if (obj === null || typeof obj !== 'object') {
+    if (prefix) out.push({ path: prefix, value: obj });
+    return out;
+  }
+  for (var k in obj) {
+    var p = prefix ? prefix + '.' + k : k;
+    var v = obj[k];
+    if (v !== null && typeof v === 'object') flattenPayload(v, p, out);
+    else out.push({ path: p, value: v });
+  }
+  return out;
+}
+
+async function loadPayloadFields(botId, triggerId, btn) {
+  var card = btn.closest('form');
+  var box = card.querySelector('.payload-fields');
+  var ta = card.querySelector('.tpl-textarea');
+  box.style.display = 'block';
+  box.innerHTML = '<span class="muted">Đang tải...</span>';
+  try {
+    var res = await fetch('/bots/' + botId + '/triggers/' + triggerId + '/last-payload');
+    var r = await res.json();
+    if (!r.ok || !r.payload) {
+      box.innerHTML = '<span class="muted">Chưa nhận được webhook nào. Hãy gửi thử 1 webhook tới địa chỉ trên rồi bấm lại.</span>';
+      return;
+    }
+    var fields = flattenPayload(r.payload, '', []);
+    if (!fields.length) {
+      box.innerHTML = '<span class="muted">Payload không có trường dữ liệu nào.</span>';
+      return;
+    }
+    box.innerHTML =
+      '<p class="hint" style="margin:4px 0">Click vào trường để chèn vào mẫu tin:</p>' +
+      fields.map(function (f) {
+        var preview = f.value === null || f.value === undefined ? '' : String(f.value);
+        if (preview.length > 28) preview = preview.slice(0, 28) + '…';
+        return '<button type="button" class="btn sm" style="margin:3px" data-path="' + esc(f.path) + '" title="' + esc(preview) + '">' +
+          esc(f.path) + ' <span class="muted">= ' + esc(preview) + '</span></button>';
+      }).join('');
+    box.querySelectorAll('button[data-path]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        insertAtCursor(ta, '{{' + b.dataset.path + '}}');
+      });
+    });
+  } catch (e) {
+    box.innerHTML = '<span class="muted">Lỗi: ' + esc(e.message) + '</span>';
+  }
+}
+
+function insertAtCursor(ta, text) {
+  if (!ta) return;
+  var start = ta.selectionStart || 0;
+  var end = ta.selectionEnd || 0;
+  ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
+  ta.selectionStart = ta.selectionEnd = start + text.length;
+  ta.focus();
+}
 
 // --- Copy on click ---
 document.querySelectorAll('.copy').forEach(function (el) {

@@ -130,6 +130,33 @@
         <textarea name="reply_text" placeholder="VD: Xin chào {{ten}}! Bạn cần hỗ trợ gì?"><%= rl.reply_text || '' %></textarea>
         <p class="hint">Chèn: <span class="kbd">{{ten}}</span> tên người gửi · <span class="kbd">{{noi_dung}}</span> nội dung tin · <span class="kbd">{{user_id}}</span> · <span class="kbd">{{chat_id}}</span></p>
       </div>
+      <div class="field-ai-data" style="border:1px dashed var(--border);border-radius:8px;padding:12px;margin-top:10px">
+        <label style="margin-top:0">📊 Nguồn dữ liệu cho AI <span class="hint">(AI sẽ đọc dữ liệu này để trả lời — không bắt buộc)</span></label>
+        <select name="data_mode" class="data-select" onchange="toggleData(this)">
+          <option value="none" <%= rl.data_mode==='none'||!rl.data_mode?'selected':'' %>>Không dùng dữ liệu</option>
+          <option value="db" <%= rl.data_mode==='db'?'selected':'' %>>Database (MariaDB/MySQL/SQL Server)</option>
+          <option value="sheet" <%= rl.data_mode==='sheet'?'selected':'' %>>Google Sheet (link chia sẻ công khai)</option>
+        </select>
+        <div class="field-data-db">
+          <div class="row">
+            <div>
+              <label>Kết nối dữ liệu</label>
+              <select name="data_datasource">
+                <option value="">-- chọn --</option>
+                <% datasources.forEach(function(d){ %><option value="<%= d.name %>" <%= rl.data_datasource===d.name?'selected':'' %>><%= d.name %> (<%= d.type %>)</option><% }); %>
+              </select>
+            </div>
+          </div>
+          <label>Câu truy vấn SQL</label>
+          <textarea name="data_query" class="code" style="min-height:70px" placeholder="SELECT ten, gia FROM san_pham LIMIT 50"><%= rl.data_query || '' %></textarea>
+          <p class="hint">Dùng dấu <span class="kbd">?</span> để chèn nội dung tin nhắn của khách vào truy vấn. VD: <span class="mono">SELECT * FROM don_hang WHERE ma = ?</span></p>
+        </div>
+        <div class="field-data-sheet">
+          <label>Link Google Sheet</label>
+          <input name="data_sheet_url" class="mono" value="<%= rl.data_sheet_url || '' %>" placeholder="https://docs.google.com/spreadsheets/d/..." />
+          <p class="hint">Sheet phải được chia sẻ <strong>"Bất kỳ ai có liên kết đều xem được"</strong>. AI sẽ đọc toàn bộ nội dung sheet để trả lời.</p>
+        </div>
+      </div>
       <div class="field-code">
         <label>Code xử lý (JavaScript)</label>
         <textarea name="code" class="code" spellcheck="false"><%= rl.code || '' %></textarea>
@@ -213,15 +240,20 @@
         <label>Gửi tới Chat ID <span class="hint">(nhóm hoặc user nhận tin — lấy bằng /id)</span></label>
         <input name="target_chat_id" class="mono" value="<%= t.target_chat_id || '' %>" placeholder="Dán Chat ID nhận tin" />
         <label>Mẫu tin nhắn</label>
-        <textarea name="template" class="code" spellcheck="false" style="min-height:170px"><%= t.template || '' %></textarea>
+        <textarea name="template" class="code tpl-textarea" spellcheck="false" style="min-height:170px"><%= t.template || '' %></textarea>
         <p class="hint">Chèn dữ liệu bằng <span class="kbd">{{ten_truong}}</span>. Nếu payload có <span class="mono">body</span> thì dùng <span class="kbd">{{body.ho_ten}}</span> hoặc gọn <span class="kbd">{{ho_ten}}</span>.</p>
+        <div style="margin:8px 0">
+          <button type="button" class="btn sm" onclick="loadPayloadFields(<%= bot.id %>, <%= t.id %>, this)">📥 Lấy dữ liệu mẫu từ webhook gần nhất</button>
+          <span class="hint">— gửi thử 1 webhook tới địa chỉ trên rồi bấm nút này; click vào trường để chèn vào mẫu tin.</span>
+        </div>
+        <div class="payload-fields" style="display:none;margin-bottom:8px"></div>
         <label>Trường chứa URL ảnh (tuỳ chọn)</label>
         <input name="photo_field" class="mono" value="<%= t.photo_field || '' %>" placeholder="VD: body.hinh_anh — để trống nếu không gửi ảnh" />
       </div>
       <div class="field-code">
         <label>Code xử lý (JavaScript)</label>
         <textarea name="code" class="code" spellcheck="false"><%= t.code || '' %></textarea>
-        <p class="hint"><span class="mono">ctx.payload</span> · <span class="mono">ctx.send(chatId,text)</span> · <span class="mono">ctx.sendPhoto</span> · <span class="mono">ctx.ai</span> · <span class="mono">ctx.db</span></p>
+        <p class="hint"><span class="mono">ctx.payload</span> · <span class="mono">ctx.send(chatId,text)</span> · <span class="mono">ctx.sendPhoto</span> · <span class="mono">ctx.ai</span> · <span class="mono">ctx.db</span> · <span class="mono">ctx.sheet(url)</span></p>
       </div>
       <div class="check" style="margin-top:10px"><input type="checkbox" id="te_<%= t.id %>" name="enabled" <%= t.enabled?'checked':'' %> /><label for="te_<%= t.id %>" style="margin:0">Bật webhook</label></div>
       <div style="margin-top:12px"><button class="btn primary">Lưu</button></div>

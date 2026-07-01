@@ -53,6 +53,11 @@ async function ensureColumns() {
     // No-code reply mode for message rules.
     ['message_rules', 'action_type', "ENUM('text','ai','code') NOT NULL DEFAULT 'text'"],
     ['message_rules', 'reply_text', 'MEDIUMTEXT NULL'],
+    // No-code data sources for AI replies (database query or Google Sheet).
+    ['message_rules', 'data_mode', "ENUM('none','db','sheet') NOT NULL DEFAULT 'none'"],
+    ['message_rules', 'data_datasource', 'VARCHAR(120) NULL'],
+    ['message_rules', 'data_query', 'TEXT NULL'],
+    ['message_rules', 'data_sheet_url', 'VARCHAR(500) NULL'],
     // No-code template mode for external webhook triggers.
     ['triggers', 'mode', "ENUM('template','code') NOT NULL DEFAULT 'code'"],
     ['triggers', 'target_chat_id', 'VARCHAR(120) NULL'],

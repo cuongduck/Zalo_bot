@@ -239,6 +239,10 @@ router.post('/bots/:id/rules/:rid/save', loadBot, async (req, res) => {
       chat_filter: req.body.chat_filter,
       action_type: req.body.action_type || 'text',
       reply_text: req.body.reply_text || null,
+      data_mode: ['none', 'db', 'sheet'].includes(req.body.data_mode) ? req.body.data_mode : 'none',
+      data_datasource: (req.body.data_datasource || '').trim() || null,
+      data_query: req.body.data_query || null,
+      data_sheet_url: (req.body.data_sheet_url || '').trim() || null,
       sort_order: parseInt(req.body.sort_order, 10) || 0,
       code: req.body.code || null,
       enabled: req.body.enabled ? 1 : 0,
@@ -292,6 +296,14 @@ router.post('/bots/:id/triggers/:tid/save', loadBot, async (req, res) => {
     req.flash('success', `Đã lưu webhook "${t.name}".`);
   }
   res.redirect('/bots/' + req.bot.id);
+});
+
+// Latest raw payload a named webhook received — powers the no-code field picker.
+router.get('/bots/:id/triggers/:tid/last-payload', loadBot, async (req, res) => {
+  const t = await Trigger.findById(parseInt(req.params.tid, 10));
+  if (!t || t.bot_id !== req.bot.id) return res.status(404).json({ ok: false });
+  const payload = await Log.lastRawByEvent(req.bot.id, 'trigger:' + t.slug);
+  res.json({ ok: true, payload });
 });
 
 router.post('/bots/:id/triggers/:tid/delete', loadBot, async (req, res) => {

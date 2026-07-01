@@ -39,6 +39,22 @@ const Log = {
     });
   },
 
+  /** Latest raw payload logged for an event type (e.g. 'trigger:baocaomoi'). */
+  async lastRawByEvent(botId, eventType) {
+    const row = await queryOne(
+      `SELECT raw FROM bot_logs
+       WHERE bot_id = :bid AND event_type = :ev AND direction = 'in' AND raw IS NOT NULL
+       ORDER BY id DESC LIMIT 1`,
+      { bid: botId, ev: eventType }
+    );
+    if (!row || !row.raw) return null;
+    try {
+      return JSON.parse(row.raw);
+    } catch {
+      return null;
+    }
+  },
+
   async clearForBot(botId) {
     await query('DELETE FROM bot_logs WHERE bot_id = :bid', { bid: botId });
   },
