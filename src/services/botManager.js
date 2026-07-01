@@ -5,6 +5,7 @@ const ZaloBotApi = require('./zaloApi');
 const gemini = require('./gemini');
 const externalDb = require('./externalDb');
 const { runHandler } = require('./customHandler');
+const tpl = require('../utils/template');
 const Bot = require('../models/bot');
 const Log = require('../models/log');
 const Webhook = require('../models/webhook');
@@ -80,7 +81,7 @@ async function handleUpdate(bot, update) {
   const rules = await MessageRule.listEnabledForBot(bot.id);
   for (const rule of rules) {
     if (ruleMatches(rule, m)) {
-      await runMessageCode(bot, api, m, rule.code, 'rule:' + rule.name);
+      await executeRule(bot, api, m, rule);
       return; // matched rule is authoritative
     }
   }
@@ -135,6 +136,38 @@ function ruleMatches(rule, m) {
       }
     default:
       return false;
+  }
+}
+
+/** Execute a matched rule according to its action type (text / ai / code). */
+async function executeRule(bot, api, m, rule) {
+  const label = 'rule:' + rule.name;
+  const vars = {
+    ten: m.fromName || '',
+    ten_nguoi_gui: m.fromName || '',
+    noi_dung: m.text || '',
+    text: m.text || '',
+    chat_id: m.chatId || '',
+    user_id: m.fromId || '',
+    message: { text: m.text, chatId: m.chatId, chatType: m.chatType, fromId: m.fromId, fromName: m.fromName },
+  };
+  try {
+    if (rule.action_type === 'ai') {
+      await api.sendChatAction(m.chatId, 'typing').catch(() => {});
+      const prompt = (rule.reply_text ? rule.reply_text.trim() + '\n\n' : '') + (m.text || '');
+      const reply = await gemini.generateReply({
+        apiKey: bot.ai_api_key, model: bot.ai_model, systemPrompt: bot.ai_system_prompt, message: prompt,
+      });
+      await sendAndLog(bot, api, m.chatId, reply, label);
+    } else if (rule.action_type === 'code') {
+      await runMessageCode(bot, api, m, rule.code, label);
+    } else {
+      // 'text' — send the fixed reply, rendering {{placeholders}}.
+      const text = tpl.render(rule.reply_text || '', vars);
+      if (text.trim()) await sendAndLog(bot, api, m.chatId, text, label);
+    }
+  } catch (err) {
+    await Log.add(bot.id, { direction: 'error', event_type: label, chat_id: m.chatId, content: err.message });
   }
 }
 
@@ -250,6 +283,29 @@ async function runTrigger(bot, payload, code) {
   return { returned, logs };
 }
 
+/**
+ * Execute a named trigger by mode: 'template' (no-code, {{placeholders}} -> a
+ * fixed target chat) or 'code' (sandboxed JS). Returns { returned, logs }.
+ */
+async function executeTrigger(bot, payload, trigger) {
+  if (trigger.mode === 'template') {
+    const api = apiFor(bot);
+    const label = 'trigger:' + trigger.slug;
+    const chatId = trigger.target_chat_id;
+    if (!chatId) throw new Error('Chưa đặt "Gửi tới Chat ID" cho webhook này.');
+    const text = tpl.render(trigger.template || '', payload);
+    const photo = trigger.photo_field ? tpl.getPath(payload, trigger.photo_field) : null;
+    if (photo) {
+      await api.sendPhoto(chatId, photo, { caption: text });
+      await Log.add(bot.id, { direction: 'out', event_type: label + ':photo', chat_id: chatId, content: String(photo) });
+    } else {
+      await sendAndLog(bot, api, chatId, text, label);
+    }
+    return { returned: 'sent', logs: [] };
+  }
+  return runTrigger(bot, payload, trigger.code);
+}
+
 /** Send a message and record the outgoing log entry. */
 async function sendAndLog(bot, api, chatId, text, eventType = 'message') {
   if (!chatId) throw new Error('chatId is required to send a message');
@@ -306,4 +362,4 @@ async function forwardToWebhooks(bot, m) {
   );
 }
 
-module.exports = { handleUpdate, normalizeUpdate, apiFor, sendAndLog, runTrigger };
+module.exports = { handleUpdate, normalizeUpdate, apiFor, sendAndLog, runTrigger, executeTrigger };

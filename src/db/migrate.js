@@ -50,6 +50,14 @@ async function ensureColumns() {
   const cols = [
     ['bots', 'trigger_enabled', 'TINYINT(1) NOT NULL DEFAULT 0'],
     ['bots', 'trigger_code', 'MEDIUMTEXT NULL'],
+    // No-code reply mode for message rules.
+    ['message_rules', 'action_type', "ENUM('text','ai','code') NOT NULL DEFAULT 'text'"],
+    ['message_rules', 'reply_text', 'MEDIUMTEXT NULL'],
+    // No-code template mode for external webhook triggers.
+    ['triggers', 'mode', "ENUM('template','code') NOT NULL DEFAULT 'code'"],
+    ['triggers', 'target_chat_id', 'VARCHAR(120) NULL'],
+    ['triggers', 'template', 'MEDIUMTEXT NULL'],
+    ['triggers', 'photo_field', 'VARCHAR(190) NULL'],
   ];
   for (const [table, name, def] of cols) {
     const [rows] = await conn.query(
@@ -62,6 +70,13 @@ async function ensureColumns() {
       console.log(`[migrate] added column ${table}.${name}`);
     }
   }
+  // Keep rules/triggers created before no-code modes working as 'code'.
+  await conn.query(
+    "UPDATE message_rules SET action_type='code' WHERE code IS NOT NULL AND code<>'' AND (reply_text IS NULL OR reply_text='') AND action_type='text'"
+  );
+  await conn.query(
+    "UPDATE triggers SET mode='code' WHERE code IS NOT NULL AND code<>'' AND (template IS NULL OR template='') AND mode='template'"
+  );
   await conn.end();
 }
 

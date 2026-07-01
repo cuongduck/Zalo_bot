@@ -84,7 +84,11 @@ CREATE TABLE IF NOT EXISTS triggers (
   bot_id      INT UNSIGNED NOT NULL,
   slug        VARCHAR(80) NOT NULL,                 -- used in the URL: /api/bots/:id/trigger/:slug
   name        VARCHAR(120) NOT NULL,
-  code        MEDIUMTEXT NULL,
+  mode        ENUM('template','code') NOT NULL DEFAULT 'template',
+  target_chat_id VARCHAR(120) NULL,                 -- template mode: chat to send to
+  template    MEDIUMTEXT NULL,                       -- template mode: message with {{placeholders}}
+  photo_field VARCHAR(190) NULL,                     -- template mode: payload path to an image URL
+  code        MEDIUMTEXT NULL,                       -- code mode: JS handler
   enabled     TINYINT(1) NOT NULL DEFAULT 1,
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -102,6 +106,8 @@ CREATE TABLE IF NOT EXISTS message_rules (
   match_type   ENUM('prefix','contains','equals','regex','any') NOT NULL DEFAULT 'prefix',
   match_value  VARCHAR(255) NULL,
   chat_filter  ENUM('any','user','group') NOT NULL DEFAULT 'any',
+  action_type  ENUM('text','ai','code') NOT NULL DEFAULT 'text',
+  reply_text   MEDIUMTEXT NULL,
   code         MEDIUMTEXT NULL,
   sort_order   INT NOT NULL DEFAULT 0,
   enabled      TINYINT(1) NOT NULL DEFAULT 1,

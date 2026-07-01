@@ -12,6 +12,28 @@ document.querySelectorAll('.tabs button[data-tab]').forEach(function (btn) {
   });
 });
 
+// --- No-code field toggles (rules: text/ai/code ; triggers: template/code) ---
+function toggleAction(sel) {
+  var form = sel.closest('form');
+  if (!form) return;
+  var isCode = sel.value === 'code';
+  var t = form.querySelector('.field-text');
+  var c = form.querySelector('.field-code');
+  if (t) t.style.display = isCode ? 'none' : 'block';
+  if (c) c.style.display = isCode ? 'block' : 'none';
+}
+function toggleTrigger(sel) {
+  var form = sel.closest('form');
+  if (!form) return;
+  var isCode = sel.value === 'code';
+  var t = form.querySelector('.field-template');
+  var c = form.querySelector('.field-code');
+  if (t) t.style.display = isCode ? 'none' : 'block';
+  if (c) c.style.display = isCode ? 'block' : 'none';
+}
+document.querySelectorAll('.action-select').forEach(toggleAction);
+document.querySelectorAll('.mode-select').forEach(toggleTrigger);
+
 // --- Copy on click ---
 document.querySelectorAll('.copy').forEach(function (el) {
   el.addEventListener('click', function () {

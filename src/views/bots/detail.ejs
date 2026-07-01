@@ -1,107 +1,101 @@
 <%- include('../partials/head') %>
+<%
+  var matchLabels = { prefix:'Bắt đầu bằng', contains:'Chứa', equals:'Bằng đúng', regex:'Nâng cao (regex)', any:'Mọi tin nhắn' };
+  var chatLabels = { any:'Mọi nơi', user:'Chat riêng', group:'Trong nhóm' };
+  var actionLabels = { text:'Trả lời văn bản', ai:'Trả lời bằng AI', code:'Dùng code (nâng cao)' };
+  var apiBase = webhookUrl.replace('/webhook/', '/api/bots/');
+%>
 <div class="page-head">
   <div>
     <h1 style="margin-bottom:4px"><%= bot.name %></h1>
     <span class="muted"><%= bot.zalo_bot_name || 'Chưa xác thực token' %> <% if (bot.zalo_bot_id){ %>· ID: <span class="mono"><%= bot.zalo_bot_id %></span><% } %></span>
   </div>
   <div class="btn-group">
-    <span class="tag <%= bot.status==='active'?'green':'red' %>"><%= bot.status %></span>
+    <span class="tag <%= bot.status==='active'?'green':'red' %>"><%= bot.status==='active'?'Đang chạy':'Tạm dừng' %></span>
     <a class="btn sm" href="/bots">← Danh sách</a>
   </div>
 </div>
 
-<div class="grid cols-3" style="margin-bottom:18px">
-  <div class="stat"><div class="num"><%= stats && stats.incoming || 0 %></div><div class="lbl">Tin nhận</div></div>
-  <div class="stat"><div class="num"><%= stats && stats.outgoing || 0 %></div><div class="lbl">Tin gửi</div></div>
-  <div class="stat"><div class="num"><%= stats && stats.errors || 0 %></div><div class="lbl">Lỗi</div></div>
-</div>
-
 <div class="tabs">
-  <button class="active" data-tab="webhook">Webhook</button>
-  <button data-tab="ai">AI (Gemini)</button>
-  <button data-tab="code">Code xử lý</button>
-  <button data-tab="test">Test gửi tin</button>
-  <button data-tab="trigger">Webhook ngoài</button>
-  <button data-tab="forward">Chuyển tiếp</button>
-  <button data-tab="logs">Nhật ký</button>
-  <button data-tab="settings">Cài đặt</button>
+  <button class="active" data-tab="overview">🏠 Tổng quan</button>
+  <button data-tab="reply">💬 Trả lời tin nhắn</button>
+  <button data-tab="incoming">🔗 Webhook ngoài</button>
+  <button data-tab="logs">📜 Nhật ký</button>
+  <button data-tab="settings">⚙️ Cài đặt</button>
 </div>
 
-<!-- WEBHOOK -->
-<div class="tab-pane active" id="tab-webhook">
+<!-- ============ TỔNG QUAN ============ -->
+<div class="tab-pane active" id="tab-overview">
+  <div class="grid cols-3" style="margin-bottom:18px">
+    <div class="stat"><div class="num"><%= stats && stats.incoming || 0 %></div><div class="lbl">Tin nhận</div></div>
+    <div class="stat"><div class="num"><%= stats && stats.outgoing || 0 %></div><div class="lbl">Tin gửi</div></div>
+    <div class="stat"><div class="num"><%= stats && stats.errors || 0 %></div><div class="lbl">Lỗi</div></div>
+  </div>
+
   <div class="card">
-    <h3>Webhook nhận tin từ Zalo</h3>
-    <p class="muted">Đăng ký URL này với Zalo để bot nhận tin nhắn theo thời gian thực.</p>
-    <label>Webhook URL</label>
+    <h3>✅ Các bước thiết lập</h3>
+    <ol style="line-height:2">
+      <li><%= bot.zalo_bot_id ? '✔️' : '⬜' %> <strong>Kết nối token</strong> — <%= bot.zalo_bot_id ? 'đã xác thực ('+bot.zalo_bot_name+')' : 'vào tab Cài đặt để nhập/cập nhật token' %></li>
+      <li>⬜ <strong>Đăng ký webhook</strong> với Zalo để bot nhận tin (nút bên dưới)</li>
+      <li>⬜ <strong>Cấu hình trả lời</strong> — vào tab 💬 Trả lời tin nhắn tạo quy tắc</li>
+      <li>⬜ <strong>Lấy ID & test</strong> — gửi <span class="kbd">/id</span> cho bot rồi thử gửi tin bên dưới</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>🔌 Kết nối Zalo</h3>
+    <p class="muted">Đăng ký địa chỉ này với Zalo để bot nhận được tin nhắn.</p>
+    <label>Địa chỉ webhook</label>
     <input readonly value="<%= webhookUrl %>" class="mono copy" />
-    <label>Secret token <span class="hint">gửi qua header X-Bot-Api-Secret-Token</span></label>
-    <input readonly value="<%= bot.webhook_secret %>" class="mono copy" />
-    <div class="btn-group" style="margin-top:16px">
+    <div class="btn-group" style="margin-top:14px">
       <form action="/bots/<%= bot.id %>/register-webhook" method="post"><button class="btn primary">Đăng ký webhook</button></form>
       <button class="btn" onclick="webhookInfo(<%= bot.id %>)">Kiểm tra trạng thái</button>
-      <form action="/bots/<%= bot.id %>/rotate-secret" method="post"><button class="btn">Đổi secret</button></form>
       <form action="/bots/<%= bot.id %>/delete-webhook" method="post"><button class="btn danger">Xoá webhook</button></form>
     </div>
     <pre id="webhook-info" class="logbox" style="display:none;margin-top:12px"></pre>
-    <hr />
-    <p class="hint">💡 Mẹo: gửi <span class="kbd">/id</span> trong nhóm/chat để bot trả về Chat ID và User ID.</p>
+    <p class="hint">💡 Gửi <span class="kbd">/id</span> trong chat hoặc nhóm để bot trả về Chat ID & User ID (dùng để gửi tin). Trong nhóm nhớ <strong>@nhắc tên bot</strong>.</p>
+  </div>
+
+  <div class="card">
+    <h3>🧪 Thử gửi tin nhắn</h3>
+    <label>Gửi tới Chat ID</label>
+    <input id="test-chat" class="mono" placeholder="Dán Chat ID (lấy bằng /id)" />
+    <label>Nội dung</label>
+    <textarea id="test-text" placeholder="Xin chào từ bot!"></textarea>
+    <label>Ảnh — URL công khai (tuỳ chọn)</label>
+    <input id="test-photo" class="mono" placeholder="https://.../anh.jpg" />
+    <input id="test-caption" type="hidden" />
+    <div style="margin-top:12px"><button class="btn primary" onclick="testSend(<%= bot.id %>)">Gửi thử</button></div>
+    <pre id="test-result" class="logbox" style="display:none;margin-top:12px"></pre>
   </div>
 </div>
 
-<!-- AI -->
-<div class="tab-pane" id="tab-ai">
+<!-- ============ TRẢ LỜI TIN NHẮN (Luồng 2) ============ -->
+<div class="tab-pane" id="tab-reply">
   <div class="card">
-    <h3>Trợ lý AI với Google Gemini</h3>
-    <form action="/bots/<%= bot.id %>/ai" method="post">
-      <div class="check"><input type="checkbox" id="ai_enabled" name="ai_enabled" <%= bot.ai_enabled ? 'checked':'' %> /><label for="ai_enabled" style="margin:0">Bật tự động trả lời bằng AI</label></div>
-      <label>Model</label>
-      <input type="text" name="ai_model" value="<%= bot.ai_model || 'gemini-2.0-flash' %>" placeholder="gemini-2.0-flash" />
-      <p class="hint">Model đang dùng được, vd: <span class="kbd">gemini-2.0-flash</span>, <span class="kbd">gemini-2.5-flash</span>, <span class="kbd">gemini-flash-latest</span>. (Các model 1.5 đã bị Google gỡ.)</p>
-      <label>Gemini API Key <span class="hint">để trống nếu dùng key chung của hệ thống</span></label>
-      <input type="password" name="ai_api_key" placeholder="<%= bot.ai_api_key ? '•••••• (đã lưu, để trống nếu giữ nguyên)' : 'AIza...' %>" />
-      <label>System prompt (định hướng trả lời)</label>
-      <textarea name="ai_system_prompt" placeholder="Bạn là trợ lý CSKH thân thiện của công ty..."><%= bot.ai_system_prompt || '' %></textarea>
-      <div style="margin-top:14px"><button class="btn primary">Lưu cấu hình AI</button></div>
-    </form>
-    <p class="hint">Nếu bật cả AI và Code xử lý, <strong>Code xử lý</strong> sẽ được ưu tiên (bạn có thể gọi <span class="kbd">ctx.ai()</span> trong code).</p>
-  </div>
-</div>
-
-<!-- CODE -->
-<%
-  var matchLabels = { prefix:'Bắt đầu bằng', contains:'Chứa', equals:'Bằng đúng', regex:'Regex', any:'Mọi tin' };
-  var chatLabels = { any:'Mọi nơi', user:'Chat riêng', group:'Nhóm' };
-%>
-<div class="tab-pane" id="tab-code">
-  <div class="card">
-    <h3>⚡ Quy tắc xử lý tin nhắn (low-code)</h3>
-    <p class="muted">Tạo nhiều quy tắc: khi tin nhắn Zalo <strong>khớp điều kiện</strong>, code tương ứng chạy. Xét theo thứ tự (số nhỏ trước), <strong>quy tắc đầu tiên khớp sẽ xử lý</strong>. Không quy tắc nào khớp → dùng "Code catch-all" hoặc AI bên dưới.</p>
+    <h3>💬 Bot trả lời tin nhắn từ người dùng thế nào?</h3>
+    <p class="muted">Tạo <strong>quy tắc</strong>: khi tin nhắn khớp điều kiện → bot phản hồi theo cách bạn chọn. Xét lần lượt, <strong>quy tắc đầu tiên khớp sẽ trả lời</strong>. Không khớp quy tắc nào → bot <strong>im lặng</strong> (trừ khi bật AI/ catch-all bên dưới).</p>
     <form action="/bots/<%= bot.id %>/rules" method="post">
       <div class="row">
-        <div><label>Tên quy tắc</label><input name="name" required placeholder="VD: Tra giá" /></div>
-        <div>
-          <label>Điều kiện</label>
-          <select name="match_type">
-            <% Object.keys(matchLabels).forEach(function(k){ %><option value="<%= k %>"><%= matchLabels[k] %></option><% }); %>
-          </select>
+        <div><label>Tên quy tắc</label><input name="name" required placeholder="VD: Chào hỏi" /></div>
+        <div><label>Khi tin nhắn</label>
+          <select name="match_type"><% Object.keys(matchLabels).forEach(function(k){ %><option value="<%= k %>"><%= matchLabels[k] %></option><% }); %></select>
         </div>
       </div>
       <div class="row">
-        <div><label>Giá trị khớp</label><input name="match_value" class="mono" placeholder="/gia (bỏ trống nếu chọn 'Mọi tin')" /></div>
-        <div>
-          <label>Áp dụng ở</label>
-          <select name="chat_filter">
-            <% Object.keys(chatLabels).forEach(function(k){ %><option value="<%= k %>"><%= chatLabels[k] %></option><% }); %>
-          </select>
+        <div><label>Giá trị</label><input name="match_value" placeholder="VD: xin chào (bỏ trống nếu chọn 'Mọi tin nhắn')" /></div>
+        <div><label>Áp dụng</label>
+          <select name="chat_filter"><% Object.keys(chatLabels).forEach(function(k){ %><option value="<%= k %>"><%= chatLabels[k] %></option><% }); %></select>
+        </div>
+        <div><label>Cách trả lời</label>
+          <select name="action_type"><% Object.keys(actionLabels).forEach(function(k){ %><option value="<%= k %>"><%= actionLabels[k] %></option><% }); %></select>
         </div>
       </div>
       <div style="margin-top:12px"><button class="btn primary">+ Thêm quy tắc</button></div>
     </form>
   </div>
 
-  <% if (!rules.length) { %>
-    <div class="card muted center">Chưa có quy tắc nào. Tin nhắn sẽ dùng "Code catch-all" / AI bên dưới.</div>
-  <% } %>
+  <% if (!rules.length) { %><div class="card muted center">Chưa có quy tắc nào.</div><% } %>
 
   <% rules.forEach(function(rl){ %>
   <div class="card">
@@ -109,6 +103,7 @@
       <h3 style="margin:0"><%= rl.name %>
         <span class="tag blue"><%= matchLabels[rl.match_type] %><%= rl.match_value ? ': '+rl.match_value : '' %></span>
         <span class="tag grey"><%= chatLabels[rl.chat_filter] %></span>
+        <span class="tag yellow"><%= actionLabels[rl.action_type] %></span>
         <span class="tag <%= rl.enabled?'green':'red' %>"><%= rl.enabled?'bật':'tắt' %></span>
       </h3>
       <form action="/bots/<%= bot.id %>/rules/<%= rl.id %>/delete" method="post" onsubmit="return confirm('Xoá quy tắc này?')"><button class="btn sm danger">Xoá</button></form>
@@ -116,124 +111,119 @@
     <form action="/bots/<%= bot.id %>/rules/<%= rl.id %>/save" method="post">
       <div class="row">
         <div><label>Tên</label><input name="name" value="<%= rl.name %>" /></div>
-        <div><label>Điều kiện</label>
-          <select name="match_type">
-            <% Object.keys(matchLabels).forEach(function(k){ %><option value="<%= k %>" <%= rl.match_type===k?'selected':'' %>><%= matchLabels[k] %></option><% }); %>
-          </select>
+        <div><label>Khi tin nhắn</label>
+          <select name="match_type"><% Object.keys(matchLabels).forEach(function(k){ %><option value="<%= k %>" <%= rl.match_type===k?'selected':'' %>><%= matchLabels[k] %></option><% }); %></select>
         </div>
+        <div style="max-width:100px"><label>Thứ tự</label><input name="sort_order" type="number" value="<%= rl.sort_order %>" /></div>
       </div>
       <div class="row">
-        <div><label>Giá trị khớp</label><input name="match_value" class="mono" value="<%= rl.match_value || '' %>" /></div>
-        <div><label>Áp dụng ở</label>
-          <select name="chat_filter">
-            <% Object.keys(chatLabels).forEach(function(k){ %><option value="<%= k %>" <%= rl.chat_filter===k?'selected':'' %>><%= chatLabels[k] %></option><% }); %>
-          </select>
+        <div><label>Giá trị</label><input name="match_value" value="<%= rl.match_value || '' %>" /></div>
+        <div><label>Áp dụng</label>
+          <select name="chat_filter"><% Object.keys(chatLabels).forEach(function(k){ %><option value="<%= k %>" <%= rl.chat_filter===k?'selected':'' %>><%= chatLabels[k] %></option><% }); %></select>
         </div>
-        <div style="max-width:110px"><label>Thứ tự</label><input name="sort_order" type="number" value="<%= rl.sort_order %>" /></div>
+        <div><label>Cách trả lời</label>
+          <select name="action_type" class="action-select" onchange="toggleAction(this)"><% Object.keys(actionLabels).forEach(function(k){ %><option value="<%= k %>" <%= rl.action_type===k?'selected':'' %>><%= actionLabels[k] %></option><% }); %></select>
+        </div>
       </div>
-      <div class="check" style="margin-top:8px"><input type="checkbox" id="re_<%= rl.id %>" name="enabled" <%= rl.enabled?'checked':'' %> /><label for="re_<%= rl.id %>" style="margin:0">Bật quy tắc</label></div>
-      <label>Code xử lý</label>
-      <textarea name="code" class="code" spellcheck="false"><%= rl.code || '' %></textarea>
+      <div class="field-text">
+        <label>Nội dung trả lời <span class="hint">(chế độ "Trả lời bằng AI": đây là hướng dẫn/định hướng cho AI, có thể để trống)</span></label>
+        <textarea name="reply_text" placeholder="VD: Xin chào {{ten}}! Bạn cần hỗ trợ gì?"><%= rl.reply_text || '' %></textarea>
+        <p class="hint">Chèn: <span class="kbd">{{ten}}</span> tên người gửi · <span class="kbd">{{noi_dung}}</span> nội dung tin · <span class="kbd">{{user_id}}</span> · <span class="kbd">{{chat_id}}</span></p>
+      </div>
+      <div class="field-code">
+        <label>Code xử lý (JavaScript)</label>
+        <textarea name="code" class="code" spellcheck="false"><%= rl.code || '' %></textarea>
+      </div>
+      <div class="check" style="margin-top:10px"><input type="checkbox" id="re_<%= rl.id %>" name="enabled" <%= rl.enabled?'checked':'' %> /><label for="re_<%= rl.id %>" style="margin:0">Bật quy tắc</label></div>
       <div style="margin-top:12px"><button class="btn primary">Lưu quy tắc</button></div>
     </form>
   </div>
   <% }); %>
 
   <div class="card">
-    <h3>🧩 Code catch-all (khi không quy tắc nào khớp)</h3>
-    <p class="muted">Tuỳ chọn: một code chạy khi không quy tắc nào ở trên khớp. Có sẵn đối tượng <span class="kbd">ctx</span>.</p>
-    <form action="/bots/<%= bot.id %>/code" method="post">
-      <div class="check"><input type="checkbox" id="cc_enabled" name="custom_code_enabled" <%= bot.custom_code_enabled ? 'checked':'' %> /><label for="cc_enabled" style="margin:0">Bật code catch-all</label></div>
-      <label>Mã nguồn</label>
-      <textarea name="custom_code" class="code" spellcheck="false"><%= bot.custom_code || defaultCode %></textarea>
-      <div style="margin-top:14px"><button class="btn primary">Lưu code</button></div>
-    </form>
-    <hr />
     <details>
-      <summary class="muted" style="cursor:pointer">📚 Tài liệu đối tượng <code>ctx</code></summary>
-      <ul class="muted" style="line-height:1.8;font-size:13px">
-        <li><span class="mono">ctx.message</span> → { text, chatId, chatType, fromId, fromName, messageId, raw }</li>
-        <li><span class="mono">await ctx.reply("text")</span> → trả lời vào chat hiện tại</li>
-        <li><span class="mono">await ctx.send(chatId, "text")</span> → gửi tới chat bất kỳ</li>
-        <li><span class="mono">await ctx.ai("prompt")</span> → gọi Gemini với cấu hình của bot</li>
-        <li><span class="mono">await ctx.db("tên_kết_nối", "SELECT ...", [params])</span> → truy vấn MariaDB/MySQL/SQL Server</li>
-        <li><span class="mono">await ctx.fetch(url, opts)</span> → gọi HTTP API ngoài</li>
-        <li><span class="mono">ctx.log("...")</span> → ghi log (xem ở tab Nhật ký)</li>
-        <li><span class="mono">return "text"</span> → tự động gửi chuỗi này làm câu trả lời</li>
-      </ul>
+      <summary class="muted" style="cursor:pointer">⚙️ Nâng cao: AI tự động & Code catch-all (khi không quy tắc nào khớp)</summary>
+      <div style="margin-top:14px">
+        <h4>Trả lời AI tự động (Gemini)</h4>
+        <form action="/bots/<%= bot.id %>/ai" method="post">
+          <div class="check"><input type="checkbox" id="ai_enabled" name="ai_enabled" <%= bot.ai_enabled ? 'checked':'' %> /><label for="ai_enabled" style="margin:0">Bật: khi không quy tắc nào khớp, AI tự trả lời</label></div>
+          <div class="row">
+            <div><label>Model</label><input name="ai_model" value="<%= bot.ai_model || 'gemini-2.0-flash' %>" placeholder="gemini-2.0-flash" /></div>
+            <div><label>API Key (để trống dùng key chung)</label><input type="password" name="ai_api_key" placeholder="<%= bot.ai_api_key ? '•••• đã lưu' : 'AIza...' %>" /></div>
+          </div>
+          <label>Định hướng trả lời (system prompt)</label>
+          <textarea name="ai_system_prompt" placeholder="Bạn là trợ lý CSKH thân thiện..."><%= bot.ai_system_prompt || '' %></textarea>
+          <p class="hint">Model gợi ý: <span class="kbd">gemini-2.5-flash</span>, <span class="kbd">gemini-2.0-flash</span></p>
+          <div style="margin-top:12px"><button class="btn">Lưu cấu hình AI</button></div>
+        </form>
+        <hr />
+        <h4>Code catch-all</h4>
+        <p class="hint">Chạy khi không quy tắc nào khớp (và trước AI). Chỉ dành cho người biết code.</p>
+        <form action="/bots/<%= bot.id %>/code" method="post">
+          <div class="check"><input type="checkbox" id="cc_enabled" name="custom_code_enabled" <%= bot.custom_code_enabled ? 'checked':'' %> /><label for="cc_enabled" style="margin:0">Bật code catch-all</label></div>
+          <textarea name="custom_code" class="code" spellcheck="false"><%= bot.custom_code || defaultCode %></textarea>
+          <div style="margin-top:12px"><button class="btn">Lưu code</button></div>
+        </form>
+      </div>
     </details>
   </div>
 </div>
 
-<!-- TEST SEND -->
-<div class="tab-pane" id="tab-test">
+<!-- ============ WEBHOOK NGOÀI (Luồng 1) ============ -->
+<div class="tab-pane" id="tab-incoming">
   <div class="card">
-    <h3>Test gửi tin nhắn</h3>
-    <p class="muted">Gửi thử một tin nhắn tới một Chat ID (user hoặc nhóm).</p>
-    <label>Chat ID</label>
-    <input id="test-chat" class="mono" placeholder="VD: 1234567890 (dùng /id để lấy)" />
-    <label>Nội dung (text)</label>
-    <textarea id="test-text" placeholder="Xin chào từ bot!"></textarea>
-    <label>Ảnh — URL ảnh công khai (tuỳ chọn)</label>
-    <input id="test-photo" class="mono" placeholder="https://.../image.jpg" />
-    <label>Chú thích ảnh (caption, tuỳ chọn)</label>
-    <input id="test-caption" placeholder="Mô tả ảnh" />
-    <div style="margin-top:14px"><button class="btn primary" onclick="testSend(<%= bot.id %>)">Gửi thử</button></div>
-    <pre id="test-result" class="logbox" style="display:none;margin-top:12px"></pre>
-    <p class="hint">Có thể gửi text, ảnh, hoặc cả hai. Ảnh phải là URL công khai (http/https).</p>
-  </div>
-
-  <div class="card">
-    <h3>🔌 API gửi tin cho hệ thống ngoài</h3>
-    <p class="muted">Hệ thống khác (n8n, app của bạn, cảnh báo...) gọi endpoint này để bot gửi tin. Xác thực bằng <strong>secret token</strong> của bot (ở tab Webhook).</p>
-    <label>Endpoint</label>
-    <input readonly class="mono copy" value="POST <%= webhookUrl.replace('/webhook/', '/api/bots/') %>/send" />
-    <label>Ví dụ gửi text (curl)</label>
-    <textarea class="code" readonly rows="6">curl -X POST <%= webhookUrl.replace('/webhook/', '/api/bots/') %>/send \
-  -H "Content-Type: application/json" \
-  -H "X-Bot-Api-Secret-Token: <%= bot.webhook_secret %>" \
-  -d '{"chat_id":"CHAT_ID","text":"Xin chào!"}'</textarea>
-    <label>Ví dụ gửi kèm ảnh</label>
-    <textarea class="code" readonly rows="6">curl -X POST <%= webhookUrl.replace('/webhook/', '/api/bots/') %>/send \
-  -H "Content-Type: application/json" \
-  -H "X-Bot-Api-Secret-Token: <%= bot.webhook_secret %>" \
-  -d '{"chat_id":"CHAT_ID","text":"Có ảnh nè","photo":"https://.../image.jpg","caption":"Chú thích"}'</textarea>
-    <p class="hint">Tham số: <span class="kbd">chat_id</span> (bắt buộc), <span class="kbd">text</span>, <span class="kbd">photo</span> (URL), <span class="kbd">caption</span>. Có ít nhất text hoặc photo.</p>
-  </div>
-</div>
-
-<!-- EXTERNAL WEBHOOK TRIGGERS -->
-<div class="tab-pane" id="tab-trigger">
-  <div class="card">
-    <h3>🔀 Webhook ngoài → xử lý → gửi Zalo</h3>
-    <p class="muted">Mỗi nguồn (báo cáo, phê duyệt, cảnh báo...) tạo <strong>một webhook riêng</strong> với URL và code riêng. Hệ thống ngoài POST JSON tới URL, code nhận qua <span class="kbd">ctx.payload</span> rồi gọi <span class="kbd">ctx.send()/ctx.sendPhoto()</span>.</p>
-    <p class="hint">Tất cả webhook đều xác thực bằng header <span class="mono">X-Bot-Api-Secret-Token: <%= bot.webhook_secret %></span></p>
-
-    <form action="/bots/<%= bot.id %>/triggers" method="post" style="margin-top:10px">
+    <h3>🔗 Nhận webhook từ hệ thống ngoài → gửi tin Zalo</h3>
+    <p class="muted">Mỗi nguồn (báo cáo, phê duyệt...) có một URL riêng. Hệ thống ngoài POST dữ liệu vào URL, bot gửi tin theo cấu hình. Xác thực bằng header <span class="mono">X-Bot-Api-Secret-Token: <%= bot.webhook_secret %></span></p>
+    <form action="/bots/<%= bot.id %>/triggers" method="post">
       <div class="row">
         <div><label>Tên webhook</label><input name="name" required placeholder="VD: Báo cáo mới" /></div>
-        <div><label>Slug (để trống sẽ tự tạo)</label><input name="slug" class="mono" placeholder="baocaomoi" /></div>
+        <div><label>Kiểu xử lý</label>
+          <select name="mode">
+            <option value="template">Mẫu tin nhắn (không cần code)</option>
+            <option value="code">Dùng code (nâng cao)</option>
+          </select>
+        </div>
       </div>
-      <div style="margin-top:12px"><button class="btn primary">+ Tạo webhook riêng</button></div>
+      <div style="margin-top:12px"><button class="btn primary">+ Tạo webhook</button></div>
     </form>
   </div>
 
-  <% if (!triggers.length) { %>
-    <div class="card muted center">Chưa có webhook riêng nào. Tạo một cái ở trên 👆</div>
-  <% } %>
+  <% if (!triggers.length) { %><div class="card muted center">Chưa có webhook ngoài nào.</div><% } %>
 
   <% triggers.forEach(function(t){ %>
   <div class="card">
     <div class="page-head" style="margin-bottom:8px">
-      <h3 style="margin:0"><%= t.name %> <span class="tag <%= t.enabled?'green':'red' %>"><%= t.enabled?'bật':'tắt' %></span></h3>
+      <h3 style="margin:0"><%= t.name %>
+        <span class="tag blue"><%= t.mode==='template'?'Mẫu tin nhắn':'Code' %></span>
+        <span class="tag <%= t.enabled?'green':'red' %>"><%= t.enabled?'bật':'tắt' %></span>
+      </h3>
       <form action="/bots/<%= bot.id %>/triggers/<%= t.id %>/delete" method="post" onsubmit="return confirm('Xoá webhook này?')"><button class="btn sm danger">Xoá</button></form>
     </div>
-    <label>Endpoint (POST)</label>
-    <input readonly class="mono copy" value="<%= webhookUrl.replace('/webhook/', '/api/bots/') %>/trigger/<%= t.slug %>" />
+    <label>Địa chỉ webhook (POST)</label>
+    <input readonly class="mono copy" value="<%= apiBase %>/trigger/<%= t.slug %>" />
     <form action="/bots/<%= bot.id %>/triggers/<%= t.id %>/save" method="post" style="margin-top:10px">
-      <div class="check"><input type="checkbox" id="te_<%= t.id %>" name="enabled" <%= t.enabled?'checked':'' %> /><label for="te_<%= t.id %>" style="margin:0">Bật xử lý</label></div>
-      <label>Code xử lý payload</label>
-      <textarea name="code" class="code" spellcheck="false"><%= t.code || '' %></textarea>
+      <input type="hidden" name="name" value="<%= t.name %>" />
+      <label>Kiểu xử lý</label>
+      <select name="mode" class="mode-select" onchange="toggleTrigger(this)">
+        <option value="template" <%= t.mode==='template'?'selected':'' %>>Mẫu tin nhắn (không cần code)</option>
+        <option value="code" <%= t.mode==='code'?'selected':'' %>>Dùng code (nâng cao)</option>
+      </select>
+
+      <div class="field-template">
+        <label>Gửi tới Chat ID <span class="hint">(nhóm hoặc user nhận tin — lấy bằng /id)</span></label>
+        <input name="target_chat_id" class="mono" value="<%= t.target_chat_id || '' %>" placeholder="Dán Chat ID nhận tin" />
+        <label>Mẫu tin nhắn</label>
+        <textarea name="template" class="code" spellcheck="false" style="min-height:170px"><%= t.template || '' %></textarea>
+        <p class="hint">Chèn dữ liệu bằng <span class="kbd">{{ten_truong}}</span>. Nếu payload có <span class="mono">body</span> thì dùng <span class="kbd">{{body.ho_ten}}</span> hoặc gọn <span class="kbd">{{ho_ten}}</span>.</p>
+        <label>Trường chứa URL ảnh (tuỳ chọn)</label>
+        <input name="photo_field" class="mono" value="<%= t.photo_field || '' %>" placeholder="VD: body.hinh_anh — để trống nếu không gửi ảnh" />
+      </div>
+      <div class="field-code">
+        <label>Code xử lý (JavaScript)</label>
+        <textarea name="code" class="code" spellcheck="false"><%= t.code || '' %></textarea>
+        <p class="hint"><span class="mono">ctx.payload</span> · <span class="mono">ctx.send(chatId,text)</span> · <span class="mono">ctx.sendPhoto</span> · <span class="mono">ctx.ai</span> · <span class="mono">ctx.db</span></p>
+      </div>
+      <div class="check" style="margin-top:10px"><input type="checkbox" id="te_<%= t.id %>" name="enabled" <%= t.enabled?'checked':'' %> /><label for="te_<%= t.id %>" style="margin:0">Bật webhook</label></div>
       <div style="margin-top:12px"><button class="btn primary">Lưu</button></div>
     </form>
   </div>
@@ -241,65 +231,20 @@
 
   <div class="card">
     <details>
-      <summary class="muted" style="cursor:pointer">📚 ctx trong code trigger + ví dụ curl</summary>
-      <ul class="muted" style="line-height:1.8;font-size:13px">
-        <li><span class="mono">ctx.payload</span> → JSON nhận được (n8n gửi mảng — lấy phần tử đầu, dữ liệu ở <span class="mono">.body</span>)</li>
-        <li><span class="mono">await ctx.send(chatId, text)</span> · <span class="mono">await ctx.sendPhoto(chatId, url, caption)</span></li>
-        <li><span class="mono">await ctx.ai(prompt)</span> · <span class="mono">await ctx.db(name, sql, params)</span> · <span class="mono">ctx.fetch</span> · <span class="mono">ctx.log</span></li>
-      </ul>
-      <label>Ví dụ gọi thử (thay &lt;slug&gt;)</label>
-      <textarea class="code" readonly rows="5">curl -X POST <%= webhookUrl.replace('/webhook/', '/api/bots/') %>/trigger/&lt;slug&gt; \
+      <summary class="muted" style="cursor:pointer">📚 Ví dụ gọi thử (curl)</summary>
+      <textarea class="code" readonly rows="5" style="margin-top:10px">curl -X POST <%= apiBase %>/trigger/&lt;slug&gt; \
   -H "Content-Type: application/json" \
   -H "X-Bot-Api-Secret-Token: <%= bot.webhook_secret %>" \
-  -d '{"body":{"id":"BC-001","ho_ten":"Nguyen Van A"}}'</textarea>
+  -d '{"body":{"id":"BC-001","ho_ten":"Nguyen Van A","hinh_anh":"https://..."}}'</textarea>
     </details>
   </div>
 </div>
 
-<!-- FORWARD WEBHOOKS -->
-<div class="tab-pane" id="tab-forward">
-  <div class="card">
-    <h3>Webhook chuyển tiếp sự kiện</h3>
-    <p class="muted">Mỗi tin nhắn đến sẽ được POST (JSON) tới các URL bên dưới — dùng để tích hợp n8n, hệ thống ngoài...</p>
-    <form action="/bots/<%= bot.id %>/webhooks" method="post">
-      <div class="row">
-        <div><label>Tên</label><input name="name" required placeholder="n8n flow" /></div>
-        <div><label>Sự kiện</label><input name="events" placeholder="* hoặc message.text" value="*" /></div>
-      </div>
-      <label>URL đích</label>
-      <input name="target_url" required class="mono" placeholder="https://n8n.example.com/webhook/abc" />
-      <label>Secret (tuỳ chọn) <span class="hint">gửi qua header X-Webhook-Secret</span></label>
-      <input name="secret" class="mono" />
-      <div style="margin-top:14px"><button class="btn primary">Thêm webhook</button></div>
-    </form>
-    <% if (webhooks.length) { %>
-    <hr />
-    <div class="table-wrap"><table>
-      <thead><tr><th>Tên</th><th>URL</th><th>Sự kiện</th><th>Trạng thái</th><th></th></tr></thead>
-      <tbody>
-      <% webhooks.forEach(function(w){ %>
-        <tr>
-          <td><%= w.name %></td>
-          <td class="mono" style="max-width:240px;overflow:hidden;text-overflow:ellipsis"><%= w.target_url %></td>
-          <td><span class="tag grey"><%= w.events %></span></td>
-          <td><span class="tag <%= w.enabled?'green':'red' %>"><%= w.enabled?'bật':'tắt' %></span></td>
-          <td class="btn-group">
-            <form action="/bots/<%= bot.id %>/webhooks/<%= w.id %>/toggle" method="post"><button class="btn sm"><%= w.enabled?'Tắt':'Bật' %></button></form>
-            <form action="/bots/<%= bot.id %>/webhooks/<%= w.id %>/delete" method="post"><button class="btn sm danger">Xoá</button></form>
-          </td>
-        </tr>
-      <% }); %>
-      </tbody>
-    </table></div>
-    <% } %>
-  </div>
-</div>
-
-<!-- LOGS -->
+<!-- ============ NHẬT KÝ ============ -->
 <div class="tab-pane" id="tab-logs">
   <div class="card">
     <div class="page-head">
-      <h3 style="margin:0">Nhật ký bot</h3>
+      <h3 style="margin:0">Nhật ký hoạt động</h3>
       <div class="btn-group">
         <button class="btn sm" onclick="loadLogs(<%= bot.id %>)">↻ Làm mới</button>
         <form action="/bots/<%= bot.id %>/logs/clear" method="post" onsubmit="return confirm('Xoá toàn bộ log?')"><button class="btn sm danger">Xoá log</button></form>
@@ -319,43 +264,86 @@
   </div>
 </div>
 
-<!-- SETTINGS -->
+<!-- ============ CÀI ĐẶT ============ -->
 <div class="tab-pane" id="tab-settings">
   <div class="card">
-    <h3>Cài đặt chung</h3>
+    <h3>Thông tin bot</h3>
     <form action="/bots/<%= bot.id %>/settings" method="post">
       <label>Tên bot</label>
       <input name="name" value="<%= bot.name %>" required />
       <div class="row">
-        <div>
-          <label>Chế độ nhận tin</label>
+        <div><label>Chế độ nhận tin</label>
           <select name="mode">
-            <option value="webhook" <%= bot.mode==='webhook'?'selected':'' %>>Webhook</option>
+            <option value="webhook" <%= bot.mode==='webhook'?'selected':'' %>>Webhook (khuyên dùng)</option>
             <option value="polling" <%= bot.mode==='polling'?'selected':'' %>>Long polling</option>
             <option value="off" <%= bot.mode==='off'?'selected':'' %>>Tắt</option>
           </select>
         </div>
-        <div>
-          <label>Trạng thái</label>
+        <div><label>Trạng thái</label>
           <select name="status">
-            <option value="active" <%= bot.status==='active'?'selected':'' %>>Hoạt động</option>
+            <option value="active" <%= bot.status==='active'?'selected':'' %>>Đang chạy</option>
             <option value="inactive" <%= bot.status==='inactive'?'selected':'' %>>Tạm dừng</option>
           </select>
         </div>
       </div>
-      <div style="margin-top:14px"><button class="btn primary">Lưu</button></div>
+      <div style="margin-top:12px"><button class="btn primary">Lưu</button></div>
     </form>
   </div>
+
   <div class="card">
-    <h3>Cập nhật token</h3>
+    <h3>Token Zalo</h3>
     <form action="/bots/<%= bot.id %>/token" method="post">
       <input name="token" class="mono" placeholder="Dán token mới để thay thế" required />
-      <div style="margin-top:14px"><button class="btn">Cập nhật & xác thực</button></div>
+      <div style="margin-top:12px"><button class="btn">Cập nhật & xác thực</button></div>
     </form>
   </div>
+
   <div class="card">
-    <h3 style="color:var(--danger)">Vùng nguy hiểm</h3>
-    <form action="/bots/<%= bot.id %>/delete" method="post" onsubmit="return confirm('Xoá vĩnh viễn bot này và toàn bộ log?')">
+    <details>
+      <summary class="muted" style="cursor:pointer">⚙️ Nâng cao: API gửi tin, chuyển tiếp sự kiện, secret</summary>
+      <div style="margin-top:14px">
+        <h4>API gửi tin (cho hệ thống ngoài)</h4>
+        <p class="hint">POST tới <span class="mono copy"><%= apiBase %>/send</span> với header <span class="mono">X-Bot-Api-Secret-Token</span> và body <span class="mono">{"chat_id","text","photo","caption"}</span>.</p>
+        <hr />
+        <h4>Secret token</h4>
+        <input readonly class="mono copy" value="<%= bot.webhook_secret %>" />
+        <form action="/bots/<%= bot.id %>/rotate-secret" method="post" style="margin-top:8px"><button class="btn sm">Đổi secret</button></form>
+        <hr />
+        <h4>Chuyển tiếp sự kiện tới URL ngoài</h4>
+        <form action="/bots/<%= bot.id %>/webhooks" method="post">
+          <div class="row">
+            <div><label>Tên</label><input name="name" required placeholder="n8n flow" /></div>
+            <div><label>Sự kiện</label><input name="events" value="*" /></div>
+          </div>
+          <label>URL đích</label><input name="target_url" required class="mono" placeholder="https://..." />
+          <label>Secret (tuỳ chọn)</label><input name="secret" class="mono" />
+          <div style="margin-top:12px"><button class="btn sm">Thêm</button></div>
+        </form>
+        <% if (webhooks.length) { %>
+        <div class="table-wrap" style="margin-top:12px"><table>
+          <thead><tr><th>Tên</th><th>URL</th><th>Trạng thái</th><th></th></tr></thead>
+          <tbody>
+          <% webhooks.forEach(function(w){ %>
+            <tr>
+              <td><%= w.name %></td>
+              <td class="mono" style="max-width:220px;overflow:hidden;text-overflow:ellipsis"><%= w.target_url %></td>
+              <td><span class="tag <%= w.enabled?'green':'red' %>"><%= w.enabled?'bật':'tắt' %></span></td>
+              <td class="btn-group">
+                <form action="/bots/<%= bot.id %>/webhooks/<%= w.id %>/toggle" method="post"><button class="btn sm"><%= w.enabled?'Tắt':'Bật' %></button></form>
+                <form action="/bots/<%= bot.id %>/webhooks/<%= w.id %>/delete" method="post"><button class="btn sm danger">Xoá</button></form>
+              </td>
+            </tr>
+          <% }); %>
+          </tbody>
+        </table></div>
+        <% } %>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h3 style="color:var(--danger)">Xoá bot</h3>
+    <form action="/bots/<%= bot.id %>/delete" method="post" onsubmit="return confirm('Xoá vĩnh viễn bot này và toàn bộ dữ liệu?')">
       <button class="btn danger">Xoá bot</button>
     </form>
   </div>

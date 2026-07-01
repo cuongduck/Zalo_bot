@@ -15,12 +15,19 @@ function slugify(s) {
 const Trigger = {
   slugify,
 
-  async create({ bot_id, name, slug, code = '' }) {
+  async create({ bot_id, name, slug, mode = 'template', target_chat_id = '', template = '', photo_field = '', code = '' }) {
     const finalSlug = slugify(slug || name) || 'webhook';
     const res = await query(
-      `INSERT INTO triggers (bot_id, slug, name, code, enabled)
-       VALUES (:bot_id, :slug, :name, :code, 1)`,
-      { bot_id, slug: finalSlug, name, code }
+      `INSERT INTO triggers (bot_id, slug, name, mode, target_chat_id, template, photo_field, code, enabled)
+       VALUES (:bot_id, :slug, :name, :mode, :target_chat_id, :template, :photo_field, :code, 1)`,
+      {
+        bot_id, slug: finalSlug, name,
+        mode: ['template', 'code'].includes(mode) ? mode : 'template',
+        target_chat_id: target_chat_id || null,
+        template: template || null,
+        photo_field: photo_field || null,
+        code: code || null,
+      }
     );
     return this.findById(res.insertId);
   },
@@ -42,12 +49,16 @@ const Trigger = {
     });
   },
 
-  async update(id, { code, enabled, name }) {
+  async update(id, fields) {
+    const allowed = ['name', 'mode', 'target_chat_id', 'template', 'photo_field', 'code', 'enabled'];
     const sets = [];
     const params = { id };
-    if (code !== undefined) { sets.push('code = :code'); params.code = code; }
-    if (enabled !== undefined) { sets.push('enabled = :enabled'); params.enabled = enabled ? 1 : 0; }
-    if (name !== undefined) { sets.push('name = :name'); params.name = name; }
+    for (const k of allowed) {
+      if (fields[k] !== undefined) {
+        sets.push(`${k} = :${k}`);
+        params[k] = k === 'enabled' ? (fields[k] ? 1 : 0) : (fields[k] || null);
+      }
+    }
     if (sets.length) await query(`UPDATE triggers SET ${sets.join(', ')} WHERE id = :id`, params);
     return this.findById(id);
   },

@@ -32,6 +32,14 @@ if (text.toLowerCase() === 'ping') {
 // Mặc định: nhờ AI Gemini trả lời
 return await ctx.ai(text);`;
 
+const DEFAULT_TEMPLATE = `🔔 BÁO CÁO MỚI: {{body.id}}
+👤 {{body.ho_ten}} ({{body.ma_nv}}) - {{body.bo_phan}}
+📍 {{body.xuong}} / {{body.vi_tri}}
+⚠️ {{body.severity}} - {{body.category}}
+📝 {{body.noi_dung}}
+👷 Khắc phục: {{body.nguoi_kp}} | Hạn: {{body.deadline}}
+🔗 {{body.link}}`;
+
 const DEFAULT_RULE_CODE = `// Quy tắc này khớp -> code chạy. ctx.message có { text, chatId, chatType, fromId, fromName }
 // Có thể dùng: ctx.reply, ctx.send, ctx.ai, ctx.db, ctx.sendPhoto, ctx.fetch, ctx.log
 return 'Bạn vừa gửi: ' + (ctx.message.text || '');`;
@@ -201,7 +209,7 @@ router.post('/bots/:id/trigger-code', loadBot, async (req, res) => {
 
 // --- Low-code message rules ---
 router.post('/bots/:id/rules', loadBot, async (req, res) => {
-  const { name, match_type, match_value, chat_filter } = req.body;
+  const { name, match_type, match_value, chat_filter, action_type } = req.body;
   try {
     if (!name) throw new Error('Cần nhập tên quy tắc.');
     await MessageRule.create({
@@ -210,7 +218,9 @@ router.post('/bots/:id/rules', loadBot, async (req, res) => {
       match_type,
       match_value: (match_value || '').trim(),
       chat_filter,
-      code: DEFAULT_RULE_CODE,
+      action_type: action_type || 'text',
+      reply_text: action_type === 'text' || !action_type ? 'Xin chào! Cảm ơn bạn đã liên hệ.' : '',
+      code: action_type === 'code' ? DEFAULT_RULE_CODE : '',
     });
     req.flash('success', 'Đã tạo quy tắc.');
   } catch (err) {
@@ -227,8 +237,10 @@ router.post('/bots/:id/rules/:rid/save', loadBot, async (req, res) => {
       match_type: req.body.match_type,
       match_value: (req.body.match_value || '').trim() || null,
       chat_filter: req.body.chat_filter,
+      action_type: req.body.action_type || 'text',
+      reply_text: req.body.reply_text || null,
       sort_order: parseInt(req.body.sort_order, 10) || 0,
-      code: req.body.code || '',
+      code: req.body.code || null,
       enabled: req.body.enabled ? 1 : 0,
     });
     req.flash('success', `Đã lưu quy tắc "${r.name}".`);
@@ -252,7 +264,12 @@ router.post('/bots/:id/triggers', loadBot, async (req, res) => {
     if (await Trigger.findBySlug(req.bot.id, finalSlug)) {
       throw new Error(`Slug "${finalSlug}" đã tồn tại, chọn tên/slug khác.`);
     }
-    await Trigger.create({ bot_id: req.bot.id, name: name.trim(), slug: finalSlug, code: DEFAULT_TRIGGER_CODE });
+    const mode = req.body.mode === 'code' ? 'code' : 'template';
+    await Trigger.create({
+      bot_id: req.bot.id, name: name.trim(), slug: finalSlug, mode,
+      template: mode === 'template' ? DEFAULT_TEMPLATE : '',
+      code: mode === 'code' ? DEFAULT_TRIGGER_CODE : '',
+    });
     req.flash('success', 'Đã tạo webhook riêng.');
   } catch (err) {
     req.flash('error', 'Lỗi: ' + err.message);
@@ -263,7 +280,15 @@ router.post('/bots/:id/triggers', loadBot, async (req, res) => {
 router.post('/bots/:id/triggers/:tid/save', loadBot, async (req, res) => {
   const t = await Trigger.findById(parseInt(req.params.tid, 10));
   if (t && t.bot_id === req.bot.id) {
-    await Trigger.update(t.id, { code: req.body.code || '', enabled: req.body.enabled ? 1 : 0 });
+    await Trigger.update(t.id, {
+      name: (req.body.name || t.name).trim(),
+      mode: req.body.mode === 'code' ? 'code' : 'template',
+      target_chat_id: (req.body.target_chat_id || '').trim() || null,
+      template: req.body.template || null,
+      photo_field: (req.body.photo_field || '').trim() || null,
+      code: req.body.code || null,
+      enabled: req.body.enabled ? 1 : 0,
+    });
     req.flash('success', `Đã lưu webhook "${t.name}".`);
   }
   res.redirect('/bots/' + req.bot.id);

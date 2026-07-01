@@ -4,7 +4,7 @@ const express = require('express');
 const Bot = require('../models/bot');
 const Log = require('../models/log');
 const Trigger = require('../models/trigger');
-const { apiFor, runTrigger } = require('../services/botManager');
+const { apiFor, runTrigger, executeTrigger } = require('../services/botManager');
 
 const router = express.Router();
 
@@ -160,13 +160,16 @@ router.post('/api/bots/:id/trigger/:slug', express.json({ limit: '4mb' }), async
   if (!trigger) {
     return res.status(404).json({ ok: false, error: `Không tìm thấy webhook "${req.params.slug}".` });
   }
-  if (!trigger.enabled || !trigger.code || !trigger.code.trim()) {
+  const hasHandler = trigger.mode === 'template'
+    ? !!(trigger.template && trigger.template.trim() && trigger.target_chat_id)
+    : !!(trigger.code && trigger.code.trim());
+  if (!trigger.enabled || !hasHandler) {
     await Log.add(bot.id, { direction: 'system', event_type: 'trigger:' + req.params.slug,
-      content: `Webhook "${trigger.name}" đã nhận nhưng đang tắt/trống — không xử lý.` });
-    return res.status(200).json({ ok: true, processed: false, message: 'Webhook đang tắt hoặc chưa có code.' });
+      content: `Webhook "${trigger.name}" đã nhận nhưng đang tắt/chưa cấu hình — không xử lý.` });
+    return res.status(200).json({ ok: true, processed: false, message: 'Webhook đang tắt hoặc chưa cấu hình.' });
   }
   try {
-    const out = await runTrigger(bot, req.body, trigger.code);
+    const out = await executeTrigger(bot, req.body, trigger);
     res.json({ ok: true, processed: true, trigger: trigger.slug, logs: out.logs, result: out.returned ?? null });
   } catch (err) {
     await Log.add(bot.id, { direction: 'error', event_type: 'trigger:' + req.params.slug, content: err.message });

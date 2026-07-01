@@ -9,20 +9,22 @@ const MessageRule = {
   MATCH_TYPES,
   CHAT_FILTERS,
 
-  async create({ bot_id, name, match_type = 'prefix', match_value = '', chat_filter = 'any', code = '' }) {
+  async create({ bot_id, name, match_type = 'prefix', match_value = '', chat_filter = 'any', action_type = 'text', reply_text = '', code = '' }) {
     const [{ mx }] = await query(
       'SELECT COALESCE(MAX(sort_order), 0) AS mx FROM message_rules WHERE bot_id = :bid',
       { bid: bot_id }
     );
     const res = await query(
-      `INSERT INTO message_rules (bot_id, name, match_type, match_value, chat_filter, code, sort_order, enabled)
-       VALUES (:bot_id, :name, :match_type, :match_value, :chat_filter, :code, :sort_order, 1)`,
+      `INSERT INTO message_rules (bot_id, name, match_type, match_value, chat_filter, action_type, reply_text, code, sort_order, enabled)
+       VALUES (:bot_id, :name, :match_type, :match_value, :chat_filter, :action_type, :reply_text, :code, :sort_order, 1)`,
       {
         bot_id, name,
         match_type: MATCH_TYPES.includes(match_type) ? match_type : 'prefix',
         match_value: match_value || null,
         chat_filter: CHAT_FILTERS.includes(chat_filter) ? chat_filter : 'any',
-        code,
+        action_type: ['text', 'ai', 'code'].includes(action_type) ? action_type : 'text',
+        reply_text: reply_text || null,
+        code: code || null,
         sort_order: (mx || 0) + 1,
       }
     );
@@ -47,7 +49,7 @@ const MessageRule = {
   },
 
   async update(id, fields) {
-    const allowed = ['name', 'match_type', 'match_value', 'chat_filter', 'code', 'sort_order', 'enabled'];
+    const allowed = ['name', 'match_type', 'match_value', 'chat_filter', 'action_type', 'reply_text', 'code', 'sort_order', 'enabled'];
     const sets = [];
     const params = { id };
     for (const k of allowed) {
