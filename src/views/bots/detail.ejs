@@ -132,37 +132,56 @@
   </div>
 </div>
 
-<!-- EXTERNAL WEBHOOK TRIGGER -->
+<!-- EXTERNAL WEBHOOK TRIGGERS -->
 <div class="tab-pane" id="tab-trigger">
   <div class="card">
-    <h3>🔀 Nhận webhook ngoài → xử lý → gửi Zalo</h3>
-    <p class="muted">Hệ thống ngoài (n8n, app...) POST một JSON bất kỳ tới endpoint dưới. Code của bạn nhận qua <span class="kbd">ctx.payload</span>, xử lý rồi gọi <span class="kbd">ctx.send()</span>/<span class="kbd">ctx.sendPhoto()</span> để gửi tin.</p>
-    <label>Endpoint (POST)</label>
-    <input readonly class="mono copy" value="<%= webhookUrl.replace('/webhook/', '/api/bots/') %>/trigger" />
-    <label>Header xác thực</label>
-    <input readonly class="mono copy" value="X-Bot-Api-Secret-Token: <%= bot.webhook_secret %>" />
+    <h3>🔀 Webhook ngoài → xử lý → gửi Zalo</h3>
+    <p class="muted">Mỗi nguồn (báo cáo, phê duyệt, cảnh báo...) tạo <strong>một webhook riêng</strong> với URL và code riêng. Hệ thống ngoài POST JSON tới URL, code nhận qua <span class="kbd">ctx.payload</span> rồi gọi <span class="kbd">ctx.send()/ctx.sendPhoto()</span>.</p>
+    <p class="hint">Tất cả webhook đều xác thực bằng header <span class="mono">X-Bot-Api-Secret-Token: <%= bot.webhook_secret %></span></p>
 
-    <form action="/bots/<%= bot.id %>/trigger-code" method="post" style="margin-top:12px">
-      <div class="check"><input type="checkbox" id="tg_enabled" name="trigger_enabled" <%= bot.trigger_enabled ? 'checked':'' %> /><label for="tg_enabled" style="margin:0">Bật xử lý webhook ngoài</label></div>
-      <label>Code xử lý payload</label>
-      <textarea name="trigger_code" class="code" spellcheck="false"><%= bot.trigger_code || defaultTriggerCode %></textarea>
-      <div style="margin-top:14px"><button class="btn primary">Lưu code</button></div>
+    <form action="/bots/<%= bot.id %>/triggers" method="post" style="margin-top:10px">
+      <div class="row">
+        <div><label>Tên webhook</label><input name="name" required placeholder="VD: Báo cáo mới" /></div>
+        <div><label>Slug (để trống sẽ tự tạo)</label><input name="slug" class="mono" placeholder="baocaomoi" /></div>
+      </div>
+      <div style="margin-top:12px"><button class="btn primary">+ Tạo webhook riêng</button></div>
     </form>
+  </div>
 
-    <hr />
-    <label>Ví dụ gọi thử (curl)</label>
-    <textarea class="code" readonly rows="6">curl -X POST <%= webhookUrl.replace('/webhook/', '/api/bots/') %>/trigger \
+  <% if (!triggers.length) { %>
+    <div class="card muted center">Chưa có webhook riêng nào. Tạo một cái ở trên 👆</div>
+  <% } %>
+
+  <% triggers.forEach(function(t){ %>
+  <div class="card">
+    <div class="page-head" style="margin-bottom:8px">
+      <h3 style="margin:0"><%= t.name %> <span class="tag <%= t.enabled?'green':'red' %>"><%= t.enabled?'bật':'tắt' %></span></h3>
+      <form action="/bots/<%= bot.id %>/triggers/<%= t.id %>/delete" method="post" onsubmit="return confirm('Xoá webhook này?')"><button class="btn sm danger">Xoá</button></form>
+    </div>
+    <label>Endpoint (POST)</label>
+    <input readonly class="mono copy" value="<%= webhookUrl.replace('/webhook/', '/api/bots/') %>/trigger/<%= t.slug %>" />
+    <form action="/bots/<%= bot.id %>/triggers/<%= t.id %>/save" method="post" style="margin-top:10px">
+      <div class="check"><input type="checkbox" id="te_<%= t.id %>" name="enabled" <%= t.enabled?'checked':'' %> /><label for="te_<%= t.id %>" style="margin:0">Bật xử lý</label></div>
+      <label>Code xử lý payload</label>
+      <textarea name="code" class="code" spellcheck="false"><%= t.code || '' %></textarea>
+      <div style="margin-top:12px"><button class="btn primary">Lưu</button></div>
+    </form>
+  </div>
+  <% }); %>
+
+  <div class="card">
+    <details>
+      <summary class="muted" style="cursor:pointer">📚 ctx trong code trigger + ví dụ curl</summary>
+      <ul class="muted" style="line-height:1.8;font-size:13px">
+        <li><span class="mono">ctx.payload</span> → JSON nhận được (n8n gửi mảng — lấy phần tử đầu, dữ liệu ở <span class="mono">.body</span>)</li>
+        <li><span class="mono">await ctx.send(chatId, text)</span> · <span class="mono">await ctx.sendPhoto(chatId, url, caption)</span></li>
+        <li><span class="mono">await ctx.ai(prompt)</span> · <span class="mono">await ctx.db(name, sql, params)</span> · <span class="mono">ctx.fetch</span> · <span class="mono">ctx.log</span></li>
+      </ul>
+      <label>Ví dụ gọi thử (thay &lt;slug&gt;)</label>
+      <textarea class="code" readonly rows="5">curl -X POST <%= webhookUrl.replace('/webhook/', '/api/bots/') %>/trigger/&lt;slug&gt; \
   -H "Content-Type: application/json" \
   -H "X-Bot-Api-Secret-Token: <%= bot.webhook_secret %>" \
-  -d '{"body":{"id":"BC-001","ho_ten":"Nguyen Van A","noi_dung":"Test","link":"https://..."}}'</textarea>
-    <details>
-      <summary class="muted" style="cursor:pointer">📚 ctx trong trigger</summary>
-      <ul class="muted" style="line-height:1.8;font-size:13px">
-        <li><span class="mono">ctx.payload</span> → JSON nhận được (n8n gửi dạng mảng — lấy phần tử đầu, dữ liệu ở <span class="mono">.body</span>)</li>
-        <li><span class="mono">await ctx.send(chatId, text)</span> → gửi text</li>
-        <li><span class="mono">await ctx.sendPhoto(chatId, url, caption)</span> → gửi ảnh</li>
-        <li><span class="mono">await ctx.ai(prompt)</span>, <span class="mono">await ctx.db(name, sql, params)</span>, <span class="mono">ctx.fetch</span>, <span class="mono">ctx.log</span></li>
-      </ul>
+  -d '{"body":{"id":"BC-001","ho_ten":"Nguyen Van A"}}'</textarea>
     </details>
   </div>
 </div>

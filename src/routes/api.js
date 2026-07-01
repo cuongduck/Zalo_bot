@@ -3,6 +3,7 @@
 const express = require('express');
 const Bot = require('../models/bot');
 const Log = require('../models/log');
+const Trigger = require('../models/trigger');
 const { apiFor, runTrigger } = require('../services/botManager');
 
 const router = express.Router();
@@ -125,10 +126,50 @@ router.post('/api/bots/:id/trigger', express.json({ limit: '4mb' }), async (req,
   }
 
   try {
-    const out = await runTrigger(bot, req.body);
+    const out = await runTrigger(bot, req.body, bot.trigger_code);
     res.json({ ok: true, processed: true, logs: out.logs, result: out.returned ?? null });
   } catch (err) {
     await Log.add(bot.id, { direction: 'error', event_type: 'trigger', chat_id: null, content: err.message });
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+/**
+ * Named trigger endpoint — one URL & handler per external source.
+ *   POST {APP_BASE_URL}/api/bots/:id/trigger/:slug
+ */
+router.post('/api/bots/:id/trigger/:slug', express.json({ limit: '4mb' }), async (req, res) => {
+  const bot = await authBot(req, res);
+  if (!bot) return;
+
+  const trigger = await Trigger.findBySlug(bot.id, req.params.slug);
+
+  let bodyStr;
+  try {
+    bodyStr = JSON.stringify(req.body);
+  } catch {
+    bodyStr = String(req.body);
+  }
+  await Log.add(bot.id, {
+    direction: 'in',
+    event_type: 'trigger:' + req.params.slug,
+    content: (bodyStr ? bodyStr.slice(0, 3000) : '(empty body)'),
+    raw: req.body,
+  });
+
+  if (!trigger) {
+    return res.status(404).json({ ok: false, error: `Không tìm thấy webhook "${req.params.slug}".` });
+  }
+  if (!trigger.enabled || !trigger.code || !trigger.code.trim()) {
+    await Log.add(bot.id, { direction: 'system', event_type: 'trigger:' + req.params.slug,
+      content: `Webhook "${trigger.name}" đã nhận nhưng đang tắt/trống — không xử lý.` });
+    return res.status(200).json({ ok: true, processed: false, message: 'Webhook đang tắt hoặc chưa có code.' });
+  }
+  try {
+    const out = await runTrigger(bot, req.body, trigger.code);
+    res.json({ ok: true, processed: true, trigger: trigger.slug, logs: out.logs, result: out.returned ?? null });
+  } catch (err) {
+    await Log.add(bot.id, { direction: 'error', event_type: 'trigger:' + req.params.slug, content: err.message });
     res.status(500).json({ ok: false, error: err.message });
   }
 });

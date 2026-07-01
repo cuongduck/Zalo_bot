@@ -76,6 +76,23 @@ CREATE TABLE IF NOT EXISTS webhooks (
   CONSTRAINT fk_webhooks_bot FOREIGN KEY (bot_id) REFERENCES bots (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Named external-webhook triggers: each has its own endpoint slug and handler
+-- code, so different sources (reports, approvals, alerts...) format & route
+-- their own Zalo messages.
+CREATE TABLE IF NOT EXISTS triggers (
+  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  bot_id      INT UNSIGNED NOT NULL,
+  slug        VARCHAR(80) NOT NULL,                 -- used in the URL: /api/bots/:id/trigger/:slug
+  name        VARCHAR(120) NOT NULL,
+  code        MEDIUMTEXT NULL,
+  enabled     TINYINT(1) NOT NULL DEFAULT 1,
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_trigger_bot_slug (bot_id, slug),
+  KEY idx_trigger_bot (bot_id),
+  CONSTRAINT fk_trigger_bot FOREIGN KEY (bot_id) REFERENCES bots (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- External data sources the user can query from custom handlers (MariaDB/MySQL/SQL Server).
 CREATE TABLE IF NOT EXISTS datasources (
   id            INT UNSIGNED NOT NULL AUTO_INCREMENT,

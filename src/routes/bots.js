@@ -5,6 +5,7 @@ const config = require('../config');
 const Bot = require('../models/bot');
 const Log = require('../models/log');
 const Webhook = require('../models/webhook');
+const Trigger = require('../models/trigger');
 const Datasource = require('../models/datasource');
 const ZaloBotApi = require('../services/zaloApi');
 const { apiFor, sendAndLog } = require('../services/botManager');
@@ -103,6 +104,7 @@ router.post('/bots', async (req, res) => {
 router.get('/bots/:id', loadBot, async (req, res) => {
   const logs = await Log.listForBot(req.bot.id, { limit: 50 });
   const webhooks = await Webhook.listForBot(req.bot.id);
+  const triggers = await Trigger.listForBot(req.bot.id);
   const stats = await Log.stats(req.bot.id);
   const datasources = await Datasource.listForUser(req.bot.user_id);
   const webhookUrl = `${config.appBaseUrl}/webhook/${req.bot.id}`;
@@ -111,6 +113,7 @@ router.get('/bots/:id', loadBot, async (req, res) => {
     bot: req.bot,
     logs,
     webhooks,
+    triggers,
     stats,
     datasources,
     webhookUrl,
@@ -186,6 +189,39 @@ router.post('/bots/:id/trigger-code', loadBot, async (req, res) => {
     trigger_code: req.body.trigger_code || '',
   });
   req.flash('success', 'Đã lưu code xử lý webhook ngoài.');
+  res.redirect('/bots/' + req.bot.id);
+});
+
+// --- Named triggers (multiple external webhooks) ---
+router.post('/bots/:id/triggers', loadBot, async (req, res) => {
+  const { name, slug } = req.body;
+  try {
+    if (!name) throw new Error('Cần nhập tên webhook.');
+    const finalSlug = Trigger.slugify(slug || name) || 'webhook';
+    if (await Trigger.findBySlug(req.bot.id, finalSlug)) {
+      throw new Error(`Slug "${finalSlug}" đã tồn tại, chọn tên/slug khác.`);
+    }
+    await Trigger.create({ bot_id: req.bot.id, name: name.trim(), slug: finalSlug, code: DEFAULT_TRIGGER_CODE });
+    req.flash('success', 'Đã tạo webhook riêng.');
+  } catch (err) {
+    req.flash('error', 'Lỗi: ' + err.message);
+  }
+  res.redirect('/bots/' + req.bot.id);
+});
+
+router.post('/bots/:id/triggers/:tid/save', loadBot, async (req, res) => {
+  const t = await Trigger.findById(parseInt(req.params.tid, 10));
+  if (t && t.bot_id === req.bot.id) {
+    await Trigger.update(t.id, { code: req.body.code || '', enabled: req.body.enabled ? 1 : 0 });
+    req.flash('success', `Đã lưu webhook "${t.name}".`);
+  }
+  res.redirect('/bots/' + req.bot.id);
+});
+
+router.post('/bots/:id/triggers/:tid/delete', loadBot, async (req, res) => {
+  const t = await Trigger.findById(parseInt(req.params.tid, 10));
+  if (t && t.bot_id === req.bot.id) await Trigger.delete(t.id);
+  req.flash('success', 'Đã xoá webhook.');
   res.redirect('/bots/' + req.bot.id);
 });
 
