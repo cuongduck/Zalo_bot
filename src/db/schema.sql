@@ -33,7 +33,9 @@ CREATE TABLE IF NOT EXISTS bots (
   ai_model           VARCHAR(80) NULL,
   ai_system_prompt   TEXT NULL,
   custom_code_enabled TINYINT(1) NOT NULL DEFAULT 0,
-  custom_code        MEDIUMTEXT NULL,               -- user JS handler
+  custom_code        MEDIUMTEXT NULL,               -- user JS handler for incoming Zalo messages
+  trigger_enabled    TINYINT(1) NOT NULL DEFAULT 0,
+  trigger_code       MEDIUMTEXT NULL,               -- user JS handler for external webhook triggers
   last_update_id     BIGINT NULL,                   -- polling offset cursor
   created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

@@ -38,6 +38,33 @@ async function applySchema() {
   await conn.end();
 }
 
+// Add columns introduced after the initial release (portable across MySQL/MariaDB).
+async function ensureColumns() {
+  const conn = await mysql.createConnection({
+    host: config.db.host,
+    port: config.db.port,
+    user: config.db.user,
+    password: config.db.password,
+    database: config.db.database,
+  });
+  const cols = [
+    ['bots', 'trigger_enabled', 'TINYINT(1) NOT NULL DEFAULT 0'],
+    ['bots', 'trigger_code', 'MEDIUMTEXT NULL'],
+  ];
+  for (const [table, name, def] of cols) {
+    const [rows] = await conn.query(
+      `SELECT COUNT(*) AS c FROM information_schema.columns
+       WHERE table_schema = ? AND table_name = ? AND column_name = ?`,
+      [config.db.database, table, name]
+    );
+    if (rows[0].c === 0) {
+      await conn.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${name}\` ${def}`);
+      console.log(`[migrate] added column ${table}.${name}`);
+    }
+  }
+  await conn.end();
+}
+
 async function seedAdmin() {
   const { query, queryOne } = require('../config/database');
   const existing = await queryOne('SELECT id FROM users WHERE email = :email', {
@@ -62,6 +89,8 @@ async function seedAdmin() {
     await ensureDatabase();
     console.log('[migrate] Applying schema...');
     await applySchema();
+    console.log('[migrate] Ensuring columns...');
+    await ensureColumns();
     console.log('[migrate] Seeding admin...');
     await seedAdmin();
     console.log('[migrate] Done.');

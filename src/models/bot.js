@@ -65,6 +65,7 @@ const Bot = {
     const allowed = [
       'name', 'mode', 'status', 'ai_enabled', 'ai_provider', 'ai_model',
       'ai_system_prompt', 'custom_code_enabled', 'custom_code',
+      'trigger_enabled', 'trigger_code',
     ];
     const sets = [];
     const params = { id };

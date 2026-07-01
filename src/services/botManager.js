@@ -158,6 +158,60 @@ function buildHandlerContext(bot, api, m) {
   };
 }
 
+/**
+ * Build the ctx exposed to external-webhook trigger code. Unlike message
+ * handlers there is no incoming chat to reply to; the code reads ctx.payload
+ * and explicitly calls ctx.send / ctx.sendPhoto to a chat_id it decides.
+ */
+function buildTriggerContext(bot, payload) {
+  const api = apiFor(bot);
+  return {
+    payload,
+    bot: { id: bot.id, name: bot.name, zaloId: bot.zalo_bot_id },
+    async send(chatId, text) {
+      return sendAndLog(bot, api, chatId, text, 'trigger');
+    },
+    async sendPhoto(chatId, photo, caption) {
+      const r = await api.sendPhoto(chatId, photo, { caption });
+      await Log.add(bot.id, { direction: 'out', event_type: 'trigger:photo', chat_id: chatId, content: photo });
+      return r;
+    },
+    async ai(prompt, opts = {}) {
+      return gemini.generateReply({
+        apiKey: bot.ai_api_key,
+        model: opts.model || bot.ai_model,
+        systemPrompt: opts.systemPrompt || bot.ai_system_prompt,
+        message: prompt,
+      });
+    },
+    async db(datasourceName, sql, params = []) {
+      const ds = await Datasource.findByNameForUser(datasourceName, bot.user_id);
+      if (!ds) throw new Error(`Datasource "${datasourceName}" not found for this user`);
+      return externalDb.runQuery(ds, sql, params);
+    },
+    fetch,
+  };
+}
+
+/**
+ * Run the bot's trigger_code against an arbitrary external webhook payload.
+ * Returns { returned, logs }. Throws on handler error (caller logs it).
+ */
+async function runTrigger(bot, payload) {
+  await Log.add(bot.id, {
+    direction: 'in',
+    event_type: 'trigger',
+    content: (typeof payload === 'object' ? JSON.stringify(payload) : String(payload)).slice(0, 1000),
+    raw: payload,
+  });
+  const ctx = buildTriggerContext(bot, payload);
+  const { returned, logs } = await runHandler(bot.trigger_code, ctx, { timeoutMs: 12000 });
+  if (logs.length) {
+    await Log.add(bot.id, { direction: 'system', event_type: 'trigger', content: logs.join('\n') });
+  }
+  return { returned, logs };
+}
+
 /** Send a message and record the outgoing log entry. */
 async function sendAndLog(bot, api, chatId, text, eventType = 'message') {
   if (!chatId) throw new Error('chatId is required to send a message');
@@ -214,4 +268,4 @@ async function forwardToWebhooks(bot, m) {
   );
 }
 
-module.exports = { handleUpdate, normalizeUpdate, apiFor, sendAndLog };
+module.exports = { handleUpdate, normalizeUpdate, apiFor, sendAndLog, runTrigger };

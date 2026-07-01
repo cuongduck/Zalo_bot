@@ -3,7 +3,7 @@
 const express = require('express');
 const Bot = require('../models/bot');
 const Log = require('../models/log');
-const { apiFor } = require('../services/botManager');
+const { apiFor, runTrigger } = require('../services/botManager');
 
 const router = express.Router();
 
@@ -84,5 +84,29 @@ async function handleSend(req, res) {
 // `/send` and the Zalo-style `/sendMessage` alias share one handler.
 router.post('/api/bots/:id/send', express.json({ limit: '2mb' }), handleSend);
 router.post('/api/bots/:id/sendMessage', express.json({ limit: '2mb' }), handleSend);
+
+/**
+ * External webhook trigger. Accepts an arbitrary JSON payload and runs the
+ * bot's trigger_code (sandboxed) so you can transform it and send Zalo
+ * messages. The code reads `ctx.payload` and calls ctx.send / ctx.sendPhoto.
+ *
+ *   POST {APP_BASE_URL}/api/bots/:id/trigger
+ *   Header: X-Bot-Api-Secret-Token: <bot secret>
+ *   Body:   any JSON (object or array)
+ */
+router.post('/api/bots/:id/trigger', express.json({ limit: '4mb' }), async (req, res) => {
+  const bot = await authBot(req, res);
+  if (!bot) return;
+  if (!bot.trigger_enabled || !bot.trigger_code || !bot.trigger_code.trim()) {
+    return res.status(400).json({ ok: false, error: 'Trigger code chưa được bật hoặc đang trống cho bot này.' });
+  }
+  try {
+    const out = await runTrigger(bot, req.body);
+    res.json({ ok: true, logs: out.logs, result: out.returned ?? null });
+  } catch (err) {
+    await Log.add(bot.id, { direction: 'error', event_type: 'trigger', chat_id: null, content: err.message });
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
 
 module.exports = router;

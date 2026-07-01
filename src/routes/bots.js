@@ -30,6 +30,30 @@ if (text.toLowerCase() === 'ping') {
 // Mặc định: nhờ AI Gemini trả lời
 return await ctx.ai(text);`;
 
+const DEFAULT_TRIGGER_CODE = `// Nhận webhook ngoài -> xử lý -> gửi Zalo.
+// n8n thường gửi mảng, nên lấy phần tử đầu; dữ liệu thật nằm trong .body
+const item = Array.isArray(ctx.payload) ? ctx.payload[0] : ctx.payload;
+const r = (item && item.body) ? item.body : item;
+
+// ID nhóm/người nhận (lấy bằng cách gõ /id trong nhóm)
+const CHAT_ID = 'DIEN_CHAT_ID_VAO_DAY';
+
+const msg =
+  '🔔 BÁO CÁO MỚI: ' + (r.id || '') + '\\n' +
+  '👤 ' + (r.ho_ten || '') + ' (' + (r.ma_nv || '') + ') - ' + (r.bo_phan || '') + '\\n' +
+  '📍 ' + (r.xuong || '') + ' / ' + (r.vi_tri || '') + '\\n' +
+  '⚠️ ' + (r.severity || '') + ' - ' + (r.category || '') + '\\n' +
+  '📝 ' + (r.noi_dung || '') + '\\n' +
+  '👷 Khắc phục: ' + (r.nguoi_kp || '') + ' | Hạn: ' + (r.deadline || '') + '\\n' +
+  '🔗 ' + (r.link || '');
+
+if (r.hinh_anh) {
+  await ctx.sendPhoto(CHAT_ID, r.hinh_anh, msg);
+} else {
+  await ctx.send(CHAT_ID, msg);
+}
+return 'sent';`;
+
 async function loadBot(req, res, next) {
   const bot = await Bot.findByIdForUser(parseInt(req.params.id, 10), req.user.id, isAdmin(req));
   if (!bot) {
@@ -91,6 +115,7 @@ router.get('/bots/:id', loadBot, async (req, res) => {
     datasources,
     webhookUrl,
     defaultCode: DEFAULT_CODE,
+    defaultTriggerCode: DEFAULT_TRIGGER_CODE,
   });
 });
 
@@ -151,6 +176,16 @@ router.post('/bots/:id/code', loadBot, async (req, res) => {
     custom_code: req.body.custom_code || '',
   });
   req.flash('success', 'Đã lưu code xử lý tuỳ biến.');
+  res.redirect('/bots/' + req.bot.id);
+});
+
+// --- External webhook trigger code ---
+router.post('/bots/:id/trigger-code', loadBot, async (req, res) => {
+  await Bot.updateSettings(req.bot.id, {
+    trigger_enabled: req.body.trigger_enabled ? 1 : 0,
+    trigger_code: req.body.trigger_code || '',
+  });
+  req.flash('success', 'Đã lưu code xử lý webhook ngoài.');
   res.redirect('/bots/' + req.bot.id);
 });
 
