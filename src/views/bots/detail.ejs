@@ -248,11 +248,13 @@
         <label>Mẫu tin nhắn</label>
         <textarea name="template" class="code tpl-textarea" spellcheck="false" style="min-height:170px"><%= t.template || '' %></textarea>
         <p class="hint">Chèn dữ liệu bằng <span class="kbd">{{ten_truong}}</span>. Nếu payload có <span class="mono">body</span> thì dùng <span class="kbd">{{body.ho_ten}}</span> hoặc gọn <span class="kbd">{{ho_ten}}</span>.</p>
-        <div style="margin:8px 0">
+        <div style="margin:8px 0" class="btn-group">
           <button type="button" class="btn sm" onclick="loadPayloadFields(<%= bot.id %>, <%= t.id %>, this)">📥 Lấy dữ liệu mẫu từ webhook gần nhất</button>
-          <span class="hint">— gửi thử 1 webhook tới địa chỉ trên rồi bấm nút này; click vào trường để chèn vào mẫu tin.</span>
+          <button type="button" class="btn sm success" onclick="testTrigger(<%= bot.id %>, <%= t.id %>, this)">🧪 Gửi thử với dữ liệu mẫu</button>
         </div>
+        <p class="hint">Gửi thử 1 webhook tới địa chỉ trên → "Lấy dữ liệu mẫu" để chèn trường → "Gửi thử" để bot gửi tin thật bằng cấu hình đang nhập (chưa cần Lưu).</p>
         <div class="payload-fields" style="display:none;margin-bottom:8px"></div>
+        <pre class="trigger-test-result logbox" style="display:none;margin-bottom:8px"></pre>
         <label>Trường chứa URL ảnh (tuỳ chọn) <span class="hint">— bấm vào ô này rồi click 1 trường ở "dữ liệu mẫu" để tự điền</span></label>
         <input name="photo_field" class="mono" value="<%= t.photo_field || '' %>" placeholder="VD: body.hinh_anh — để trống nếu không gửi ảnh" />
       </div>

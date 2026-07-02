@@ -110,6 +110,29 @@ async function loadPayloadFields(botId, triggerId, btn) {
   }
 }
 
+// Send a real test message using the last sample payload + current form values.
+async function testTrigger(botId, triggerId, btn) {
+  var form = btn.closest('form');
+  var box = form.querySelector('.trigger-test-result');
+  box.style.display = 'block';
+  box.textContent = 'Đang gửi thử...';
+  var val = function (sel) { var el = form.querySelector(sel); return el ? el.value : undefined; };
+  try {
+    var r = await postJSON('/bots/' + botId + '/triggers/' + triggerId + '/test', {
+      mode: val('.mode-select'),
+      target_chat_id: val('input[name="target_chat_id"]'),
+      template: val('textarea[name="template"]'),
+      photo_field: val('input[name="photo_field"]'),
+      code: val('textarea[name="code"]'),
+    });
+    box.textContent = r.ok
+      ? '✅ Đã gửi thử thành công! Kiểm tra Zalo của chat nhận tin.' + (r.logs && r.logs.length ? '\n' + r.logs.join('\n') : '')
+      : '❌ ' + (r.message || 'Gửi thử thất bại');
+  } catch (e) {
+    box.textContent = '❌ ' + e.message;
+  }
+}
+
 function insertAtCursor(ta, text) {
   if (!ta) return;
   var start = ta.selectionStart || 0;

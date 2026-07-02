@@ -9,7 +9,7 @@ const Trigger = require('../models/trigger');
 const MessageRule = require('../models/messageRule');
 const Datasource = require('../models/datasource');
 const ZaloBotApi = require('../services/zaloApi');
-const { apiFor, sendAndLog } = require('../services/botManager');
+const { apiFor, sendAndLog, executeTrigger } = require('../services/botManager');
 const poller = require('../services/poller');
 const { requireApproved } = require('../middleware/auth');
 
@@ -305,6 +305,31 @@ router.get('/bots/:id/triggers/:tid/last-payload', loadBot, async (req, res) => 
   if (!t || t.bot_id !== req.bot.id) return res.status(404).json({ ok: false });
   const payload = await Log.lastRawByEvent(req.bot.id, 'trigger:' + t.slug);
   res.json({ ok: true, payload });
+});
+
+// Test-run a trigger against the last sample payload, using the (possibly
+// unsaved) config sent from the form — sends a real Zalo message.
+router.post('/bots/:id/triggers/:tid/test', loadBot, async (req, res) => {
+  const t = await Trigger.findById(parseInt(req.params.tid, 10));
+  if (!t || t.bot_id !== req.bot.id) return res.status(404).json({ ok: false, message: 'Không tìm thấy webhook.' });
+  const payload = await Log.lastRawByEvent(req.bot.id, 'trigger:' + t.slug);
+  if (!payload) {
+    return res.json({ ok: false, message: 'Chưa có dữ liệu mẫu — hãy để hệ thống ngoài gửi thử 1 webhook tới địa chỉ này trước.' });
+  }
+  const testConfig = {
+    ...t,
+    mode: req.body.mode === 'code' ? 'code' : 'template',
+    target_chat_id: (req.body.target_chat_id || '').trim() || null,
+    template: req.body.template !== undefined ? req.body.template : t.template,
+    photo_field: (req.body.photo_field || '').trim() || null,
+    code: req.body.code !== undefined ? req.body.code : t.code,
+  };
+  try {
+    const out = await executeTrigger(req.bot, payload, testConfig);
+    res.json({ ok: true, result: out.returned ?? null, logs: out.logs || [] });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
 });
 
 router.post('/bots/:id/triggers/:tid/delete', loadBot, async (req, res) => {
