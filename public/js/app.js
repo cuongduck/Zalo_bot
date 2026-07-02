@@ -81,13 +81,15 @@ async function loadPayloadFields(botId, triggerId, btn) {
       return;
     }
     box.innerHTML =
-      '<p class="hint" style="margin:4px 0">Click vào trường để chèn vào mẫu tin:</p>' +
+      '<p class="hint" style="margin:4px 0">Đây là toàn bộ ' + fields.length + ' trường webhook gần nhất gửi đến. Click để chèn vào mẫu tin (giá trị hiển thị được cắt ngắn, dữ liệu thật vẫn đầy đủ):</p>' +
       fields.map(function (f) {
-        var preview = f.value === null || f.value === undefined ? '' : String(f.value);
-        if (preview.length > 28) preview = preview.slice(0, 28) + '…';
-        return '<button type="button" class="btn sm" style="margin:3px" data-path="' + esc(f.path) + '" title="' + esc(preview) + '">' +
+        var full = f.value === null || f.value === undefined ? '' : String(f.value);
+        var preview = full.length > 28 ? full.slice(0, 28) + '…' : full;
+        return '<button type="button" class="btn sm" style="margin:3px" data-path="' + esc(f.path) + '" title="' + esc(full.slice(0, 300)) + '">' +
           esc(f.path) + ' <span class="muted">= ' + esc(preview) + '</span></button>';
-      }).join('');
+      }).join('') +
+      '<details style="margin-top:8px"><summary class="muted" style="cursor:pointer">Xem JSON đầy đủ webhook nhận được</summary>' +
+      '<pre class="logbox" style="margin-top:6px">' + esc(JSON.stringify(r.payload, null, 2)) + '</pre></details>';
     box.querySelectorAll('button[data-path]').forEach(function (b) {
       b.addEventListener('click', function () {
         insertAtCursor(ta, '{{' + b.dataset.path + '}}');
