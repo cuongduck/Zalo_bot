@@ -67,13 +67,6 @@ async function loadPayloadFields(botId, triggerId, btn) {
   var box = card.querySelector('.payload-fields');
   var ta = card.querySelector('.tpl-textarea');
   var photoInput = card.querySelector('input[name="photo_field"]');
-  // Remember which target the user focused last, so chips fill the right box.
-  if (!card.dataset.focusTracked) {
-    card.dataset.focusTracked = '1';
-    card.addEventListener('focusin', function (e) {
-      if (e.target === ta || e.target === photoInput) card.__fillTarget = e.target;
-    });
-  }
   box.style.display = 'block';
   box.innerHTML = '<span class="muted">Đang tải...</span>';
   try {
@@ -99,11 +92,14 @@ async function loadPayloadFields(botId, triggerId, btn) {
       '<details style="margin-top:8px"><summary class="muted" style="cursor:pointer">Xem JSON đầy đủ webhook nhận được</summary>' +
       '<pre class="logbox" style="margin-top:6px">' + esc(JSON.stringify(r.payload, null, 2)) + '</pre></details>';
     box.querySelectorAll('button[data-path]').forEach(function (b) {
+      // Chips must not steal focus, otherwise we can't tell which box the
+      // user was in (mousedown normally moves focus to the button before
+      // the click handler runs).
+      b.addEventListener('mousedown', function (e) { e.preventDefault(); });
       b.addEventListener('click', function () {
-        if (card.__fillTarget === photoInput && photoInput) {
+        if (photoInput && document.activeElement === photoInput) {
           // Photo field expects a bare payload path (no {{ }}).
           photoInput.value = b.dataset.path;
-          photoInput.focus();
         } else {
           insertAtCursor(ta, '{{' + b.dataset.path + '}}');
         }
