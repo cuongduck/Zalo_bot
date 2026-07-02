@@ -226,8 +226,9 @@
       </h3>
       <form action="/bots/<%= bot.id %>/triggers/<%= t.id %>/delete" method="post" onsubmit="return confirm('Xoá webhook này?')"><button class="btn sm danger">Xoá</button></form>
     </div>
-    <label>Địa chỉ webhook (POST)</label>
-    <input readonly class="mono copy" value="<%= apiBase %>/trigger/<%= t.slug %>" />
+    <label>Địa chỉ webhook (POST) <span class="hint">— kèm sẵn secret, chỉ cần copy dán vào hệ thống gửi</span></label>
+    <input readonly class="mono copy" value="<%= apiBase %>/trigger/<%= t.slug %>?secret=<%= bot.webhook_secret %>" />
+    <p class="hint">Hoặc dùng URL không kèm secret <span class="mono"><%= apiBase %>/trigger/<%= t.slug %></span> + header <span class="mono">X-Bot-Api-Secret-Token</span>.</p>
     <form action="/bots/<%= bot.id %>/triggers/<%= t.id %>/save" method="post" style="margin-top:10px">
       <input type="hidden" name="name" value="<%= t.name %>" />
       <label>Kiểu xử lý</label>

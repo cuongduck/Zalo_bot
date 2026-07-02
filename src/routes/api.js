@@ -46,7 +46,22 @@ async function authBot(req, res) {
     (req.get('Authorization') || '').replace(/^Bearer\s+/i, '') ||
     req.query.secret;
   if (!provided || provided !== bot.webhook_secret) {
-    res.status(401).json({ ok: false, error: 'invalid secret token' });
+    // Make rejected calls visible in the Logs tab — otherwise a caller that
+    // forgets the secret header looks like "nothing arrived" to the user.
+    Log.add(bot.id, {
+      direction: 'error',
+      event_type: 'api:rejected',
+      content:
+        `POST ${req.originalUrl} bị từ chối (401): ` +
+        (provided ? 'secret token KHÔNG khớp.' : 'THIẾU secret token.') +
+        ` Gửi kèm header "X-Bot-Api-Secret-Token: <secret>" hoặc thêm "?secret=<secret>" vào URL.` +
+        ` Headers nhận được: ${Object.keys(req.headers).join(', ')}`,
+    }).catch(() => {});
+    res.status(401).json({
+      ok: false,
+      error: 'invalid secret token',
+      hint: 'Gửi header X-Bot-Api-Secret-Token hoặc thêm ?secret=<secret> vào URL.',
+    });
     return null;
   }
   if (bot.status !== 'active') {
