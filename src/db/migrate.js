@@ -63,6 +63,8 @@ async function ensureColumns() {
     ['triggers', 'target_chat_id', 'VARCHAR(120) NULL'],
     ['triggers', 'template', 'MEDIUMTEXT NULL'],
     ['triggers', 'photo_field', 'VARCHAR(190) NULL'],
+    // Per-trigger option: allow calls without the secret token (default: required).
+    ['triggers', 'require_secret', 'TINYINT(1) NOT NULL DEFAULT 1'],
   ];
   for (const [table, name, def] of cols) {
     const [rows] = await conn.query(

@@ -226,9 +226,14 @@
       </h3>
       <form action="/bots/<%= bot.id %>/triggers/<%= t.id %>/delete" method="post" onsubmit="return confirm('Xoá webhook này?')"><button class="btn sm danger">Xoá</button></form>
     </div>
+    <% if (t.require_secret === 0) { %>
+    <label>Địa chỉ webhook (POST) <span class="hint">— không cần secret, copy dán là dùng được</span></label>
+    <input readonly class="mono copy" value="<%= apiBase %>/trigger/<%= t.slug %>" />
+    <% } else { %>
     <label>Địa chỉ webhook (POST) <span class="hint">— kèm sẵn secret, chỉ cần copy dán vào hệ thống gửi</span></label>
     <input readonly class="mono copy" value="<%= apiBase %>/trigger/<%= t.slug %>?secret=<%= bot.webhook_secret %>" />
     <p class="hint">Hoặc dùng URL không kèm secret <span class="mono"><%= apiBase %>/trigger/<%= t.slug %></span> + header <span class="mono">X-Bot-Api-Secret-Token</span>.</p>
+    <% } %>
     <form action="/bots/<%= bot.id %>/triggers/<%= t.id %>/save" method="post" style="margin-top:10px">
       <input type="hidden" name="name" value="<%= t.name %>" />
       <label>Kiểu xử lý</label>
@@ -257,6 +262,10 @@
         <p class="hint"><span class="mono">ctx.payload</span> · <span class="mono">ctx.send(chatId,text)</span> · <span class="mono">ctx.sendPhoto</span> · <span class="mono">ctx.ai</span> · <span class="mono">ctx.db</span> · <span class="mono">ctx.sheet(url)</span></p>
       </div>
       <div class="check" style="margin-top:10px"><input type="checkbox" id="te_<%= t.id %>" name="enabled" <%= t.enabled?'checked':'' %> /><label for="te_<%= t.id %>" style="margin:0">Bật webhook</label></div>
+      <div class="check" style="margin-top:6px">
+        <input type="checkbox" id="ts_<%= t.id %>" name="require_secret" <%= t.require_secret !== 0 ? 'checked':'' %> />
+        <label for="ts_<%= t.id %>" style="margin:0">Yêu cầu secret token <span class="hint">— tắt = ai có URL đều gọi được, chỉ nên dùng trong mạng nội bộ</span></label>
+      </div>
       <div style="margin-top:12px"><button class="btn primary">Lưu</button></div>
     </form>
   </div>

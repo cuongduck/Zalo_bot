@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS triggers (
   template    MEDIUMTEXT NULL,                       -- template mode: message with {{placeholders}}
   photo_field VARCHAR(190) NULL,                     -- template mode: payload path to an image URL
   code        MEDIUMTEXT NULL,                       -- code mode: JS handler
+  require_secret TINYINT(1) NOT NULL DEFAULT 1,      -- 0 = accept calls without secret
   enabled     TINYINT(1) NOT NULL DEFAULT 1,
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),

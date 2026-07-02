@@ -154,10 +154,37 @@ router.post('/api/bots/:id/trigger', express.json({ limit: '4mb' }), async (req,
  *   POST {APP_BASE_URL}/api/bots/:id/trigger/:slug
  */
 router.post('/api/bots/:id/trigger/:slug', express.json({ limit: '4mb' }), async (req, res) => {
-  const bot = await authBot(req, res);
-  if (!bot) return;
+  // Load bot + trigger first: the secret check is per-trigger (require_secret).
+  const botId = parseInt(req.params.id, 10);
+  const bot = botId ? await Bot.findById(botId).catch(() => null) : null;
+  if (!bot) return res.status(404).json({ ok: false, error: 'bot not found' });
+  if (bot.status !== 'active') return res.status(409).json({ ok: false, error: 'bot is not active' });
 
   const trigger = await Trigger.findBySlug(bot.id, req.params.slug);
+
+  if (!trigger || trigger.require_secret !== 0) {
+    const provided =
+      req.get('X-Bot-Api-Secret-Token') ||
+      req.get('X-Webhook-Secret') ||
+      (req.get('Authorization') || '').replace(/^Bearer\s+/i, '') ||
+      req.query.secret;
+    if (!provided || provided !== bot.webhook_secret) {
+      Log.add(bot.id, {
+        direction: 'error',
+        event_type: 'api:rejected',
+        content:
+          `POST ${req.originalUrl} bị từ chối (401): ` +
+          (provided ? 'secret token KHÔNG khớp.' : 'THIẾU secret token.') +
+          ` Gửi header "X-Bot-Api-Secret-Token" / thêm "?secret=..." vào URL,` +
+          ` hoặc tắt "Yêu cầu secret" trong cấu hình webhook này.`,
+      }).catch(() => {});
+      return res.status(401).json({
+        ok: false,
+        error: 'invalid secret token',
+        hint: 'Gửi header X-Bot-Api-Secret-Token, thêm ?secret=<secret> vào URL, hoặc tắt "Yêu cầu secret" cho webhook này.',
+      });
+    }
+  }
 
   let bodyStr;
   try {

@@ -50,13 +50,15 @@ const Trigger = {
   },
 
   async update(id, fields) {
-    const allowed = ['name', 'mode', 'target_chat_id', 'template', 'photo_field', 'code', 'enabled'];
+    const allowed = ['name', 'mode', 'target_chat_id', 'template', 'photo_field', 'code', 'require_secret', 'enabled'];
     const sets = [];
     const params = { id };
     for (const k of allowed) {
       if (fields[k] !== undefined) {
         sets.push(`${k} = :${k}`);
-        params[k] = k === 'enabled' ? (fields[k] ? 1 : 0) : (fields[k] || null);
+        params[k] = (k === 'enabled' || k === 'require_secret')
+          ? (fields[k] ? 1 : 0)
+          : (fields[k] || null);
       }
     }
     if (sets.length) await query(`UPDATE triggers SET ${sets.join(', ')} WHERE id = :id`, params);

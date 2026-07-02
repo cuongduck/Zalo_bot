@@ -291,6 +291,7 @@ router.post('/bots/:id/triggers/:tid/save', loadBot, async (req, res) => {
       template: req.body.template || null,
       photo_field: (req.body.photo_field || '').trim() || null,
       code: req.body.code || null,
+      require_secret: req.body.require_secret ? 1 : 0,
       enabled: req.body.enabled ? 1 : 0,
     });
     req.flash('success', `Đã lưu webhook "${t.name}".`);
