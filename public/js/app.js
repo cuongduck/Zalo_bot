@@ -66,6 +66,14 @@ async function loadPayloadFields(botId, triggerId, btn) {
   var card = btn.closest('form');
   var box = card.querySelector('.payload-fields');
   var ta = card.querySelector('.tpl-textarea');
+  var photoInput = card.querySelector('input[name="photo_field"]');
+  // Remember which target the user focused last, so chips fill the right box.
+  if (!card.dataset.focusTracked) {
+    card.dataset.focusTracked = '1';
+    card.addEventListener('focusin', function (e) {
+      if (e.target === ta || e.target === photoInput) card.__fillTarget = e.target;
+    });
+  }
   box.style.display = 'block';
   box.innerHTML = '<span class="muted">Đang tải...</span>';
   try {
@@ -81,7 +89,7 @@ async function loadPayloadFields(botId, triggerId, btn) {
       return;
     }
     box.innerHTML =
-      '<p class="hint" style="margin:4px 0">Đây là toàn bộ ' + fields.length + ' trường webhook gần nhất gửi đến. Click để chèn vào mẫu tin (giá trị hiển thị được cắt ngắn, dữ liệu thật vẫn đầy đủ):</p>' +
+      '<p class="hint" style="margin:4px 0">Đây là toàn bộ ' + fields.length + ' trường webhook gần nhất gửi đến. Click để chèn vào mẫu tin — hoặc bấm vào ô "Trường chứa URL ảnh" trước rồi click trường để tự điền vào đó. (Giá trị hiển thị được cắt ngắn, dữ liệu thật vẫn đầy đủ):</p>' +
       fields.map(function (f) {
         var full = f.value === null || f.value === undefined ? '' : String(f.value);
         var preview = full.length > 28 ? full.slice(0, 28) + '…' : full;
@@ -92,7 +100,13 @@ async function loadPayloadFields(botId, triggerId, btn) {
       '<pre class="logbox" style="margin-top:6px">' + esc(JSON.stringify(r.payload, null, 2)) + '</pre></details>';
     box.querySelectorAll('button[data-path]').forEach(function (b) {
       b.addEventListener('click', function () {
-        insertAtCursor(ta, '{{' + b.dataset.path + '}}');
+        if (card.__fillTarget === photoInput && photoInput) {
+          // Photo field expects a bare payload path (no {{ }}).
+          photoInput.value = b.dataset.path;
+          photoInput.focus();
+        } else {
+          insertAtCursor(ta, '{{' + b.dataset.path + '}}');
+        }
       });
     });
   } catch (e) {
